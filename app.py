@@ -1,4 +1,5 @@
 import calendar
+import logging
 import os
 from datetime import datetime, timedelta
 
@@ -10,6 +11,7 @@ from werkzeug.utils import secure_filename
 load_dotenv()
 
 app = Flask(__name__)
+logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
@@ -91,11 +93,25 @@ def build_yujincast_reference_connection_string() -> str:
 
 def get_db_connection(prefix: str = "DB"):
     if prefix == "YUJIN_DB":
+        last_error = None
         try:
             conn_str = build_connection_string(prefix)
-        except ValueError:
+            return pyodbc.connect(conn_str, timeout=5)
+        except Exception as exc:
+            last_error = exc
             conn_str = build_yujin_reference_connection_string()
-        return pyodbc.connect(conn_str, timeout=5)
+            try:
+                return pyodbc.connect(conn_str, timeout=5)
+            except Exception as fallback_exc:
+                last_error = fallback_exc
+
+                # ODBC 18이 실패하면 구형 서버 호환을 위해 Driver 17도 시도.
+                alt_conn_str = conn_str.replace("ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server")
+                if alt_conn_str != conn_str:
+                    return pyodbc.connect(alt_conn_str, timeout=5)
+
+        if last_error:
+            raise last_error
 
     if prefix == "YUJINCAST_DB":
         try:
@@ -105,6 +121,10 @@ def get_db_connection(prefix: str = "DB"):
         return pyodbc.connect(conn_str, timeout=5)
 
     return pyodbc.connect(build_connection_string(prefix), timeout=5)
+
+
+def get_reference_db_prefixes() -> list[str]:
+    return ["YUJIN_DB", "YUJINCAST_DB"]
 
 
 def fetch_dict_rows(cursor, query: str, params=None):
@@ -140,18 +160,20 @@ def try_load_reference_data():
     product_map = {}
     chemical_lots = set()
 
-    try:
-        with get_db_connection("YUJIN_DB") as conn:
-            with conn.cursor() as cursor:
-                company_rows = fetch_dict_rows(cursor, "SELECT CustCode, CustName FROM dbo.Custinfo")
-                product_rows = fetch_dict_rows(cursor, "SELECT CodeNo, CodeName FROM dbo.PCodeinfo")
-                chemical_rows = fetch_dict_rows(cursor, "SELECT DISTINCT LotNo FROM dbo.Chemicalinfo")
+    for prefix in get_reference_db_prefixes():
+        try:
+            with get_db_connection(prefix) as conn:
+                with conn.cursor() as cursor:
+                    company_rows = fetch_dict_rows(cursor, "SELECT CustCode, CustName FROM dbo.Custinfo")
+                    product_rows = fetch_dict_rows(cursor, "SELECT CodeNo, CodeName FROM dbo.PCodeinfo")
+                    chemical_rows = fetch_dict_rows(cursor, "SELECT DISTINCT LotNo FROM dbo.Chemicalinfo")
 
-        company_map = {row["CustCode"]: row["CustName"] for row in company_rows}
-        product_map = {row["CodeNo"]: row["CodeName"] for row in product_rows}
-        chemical_lots = {normalize_lot(row.get("LotNo")) for row in chemical_rows if row.get("LotNo")}
-    except Exception:
-        pass
+            company_map = {row["CustCode"]: row["CustName"] for row in company_rows}
+            product_map = {row["CodeNo"]: row["CodeName"] for row in product_rows}
+            chemical_lots = {normalize_lot(row.get("LotNo")) for row in chemical_rows if row.get("LotNo")}
+            return company_map, product_map, chemical_lots
+        except Exception as exc:
+            logger.warning("reference data load failed (%s): %s", prefix, exc)
 
     return company_map, product_map, chemical_lots
 
@@ -159,21 +181,23 @@ def try_load_reference_data():
 def load_form_options():
     companies = []
 
-    try:
-        with get_db_connection("YUJIN_DB") as conn:
-            with conn.cursor() as cursor:
-                companies = fetch_dict_rows(
-                    cursor,
-                    """
-                    SELECT CustCode, CustName
-                    FROM dbo.Custinfo
-                    WHERE LTRIM(RTRIM(ISNULL(CustCode, ''))) <> ''
-                      AND LTRIM(RTRIM(ISNULL(mgubun1, ''))) = '001'
-                    ORDER BY CustName
-                    """,
-                )
-    except Exception:
-        pass
+    for prefix in get_reference_db_prefixes():
+        try:
+            with get_db_connection(prefix) as conn:
+                with conn.cursor() as cursor:
+                    companies = fetch_dict_rows(
+                        cursor,
+                        """
+                        SELECT CustCode, CustName
+                        FROM dbo.Custinfo
+                        WHERE LTRIM(RTRIM(ISNULL(CustCode, ''))) <> ''
+                          AND LTRIM(RTRIM(ISNULL(mgubun1, ''))) = '001'
+                        ORDER BY CustName
+                        """,
+                    )
+            return companies
+        except Exception as exc:
+            logger.warning("company options load failed (%s): %s", prefix, exc)
 
     return companies
 
@@ -193,9 +217,15 @@ def load_products_by_company(company_code: str):
         ORDER BY LTRIM(RTRIM(md.CodeNo))
     """
 
-    with get_db_connection("YUJIN_DB") as conn:
-        with conn.cursor() as cursor:
-            return fetch_dict_rows(cursor, query, [company_code])
+    for prefix in get_reference_db_prefixes():
+        try:
+            with get_db_connection(prefix) as conn:
+                with conn.cursor() as cursor:
+                    return fetch_dict_rows(cursor, query, [company_code])
+        except Exception as exc:
+            logger.warning("product lookup failed (%s): %s", prefix, exc)
+
+    return []
 
 
 def generate_lot_no(in_date):
