@@ -92,6 +92,14 @@ MS SQL 기반 LOT 추적성(상위/하위) 조회용 Flask 웹앱입니다.
    - `DB_USER`
    - `DB_PASSWORD`
    - `DB_DRIVER` (예: `ODBC Driver 18 for SQL Server`)
+   - `YUJIN_DB_SERVER` (예: `ms0501.gabiadb.com`)
+   - `YUJIN_DB_PORT`
+   - `YUJIN_DB_NAME` 또는 `YUJIN_DB_DATABASE`
+   - `YUJIN_DB_USER` 또는 `YUJIN_DB_USERNAME`
+   - `YUJIN_DB_PASSWORD`
+   - `YUJIN_DB_DRIVER`
+   - `YUJIN_DB_ENCRYPT` (구버전 서버면 `no` 권장)
+   - `YUJIN_DB_TRUST_SERVER_CERTIFICATE` (기본 `yes`)
 
 4. 배포 확인
    - 배포 로그에서 컨테이너 시작 확인

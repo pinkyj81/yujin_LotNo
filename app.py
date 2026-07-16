@@ -54,6 +54,8 @@ def build_yujin_reference_connection_string() -> str:
     username = get_env_value("YUJIN_DB_USER", "YUJIN_DB_USERNAME", default="yujin")
     password = get_env_value("YUJIN_DB_PASSWORD", default="yj8630")
     driver = get_env_value("YUJIN_DB_DRIVER", default="ODBC Driver 18 for SQL Server")
+    encrypt = get_env_value("YUJIN_DB_ENCRYPT", default="no")
+    trust_server_cert = get_env_value("YUJIN_DB_TRUST_SERVER_CERTIFICATE", default="yes")
 
     return (
         f"DRIVER={{{driver}}};"
@@ -61,8 +63,8 @@ def build_yujin_reference_connection_string() -> str:
         f"DATABASE={database};"
         f"UID={username};"
         f"PWD={password};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=yes;"
+        f"Encrypt={encrypt};"
+        f"TrustServerCertificate={trust_server_cert};"
     )
 
 
@@ -73,6 +75,8 @@ def build_yujincast_reference_connection_string() -> str:
     username = get_env_value("YUJINCAST_DB_USER", "YUJINCAST_DB_USERNAME", default="pinkyj81")
     password = get_env_value("YUJINCAST_DB_PASSWORD", default="zoskek38!!")
     driver = get_env_value("YUJINCAST_DB_DRIVER", default="ODBC Driver 18 for SQL Server")
+    encrypt = get_env_value("YUJINCAST_DB_ENCRYPT", default="yes")
+    trust_server_cert = get_env_value("YUJINCAST_DB_TRUST_SERVER_CERTIFICATE", default="yes")
 
     return (
         f"DRIVER={{{driver}}};"
@@ -80,8 +84,8 @@ def build_yujincast_reference_connection_string() -> str:
         f"DATABASE={database};"
         f"UID={username};"
         f"PWD={password};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=yes;"
+        f"Encrypt={encrypt};"
+        f"TrustServerCertificate={trust_server_cert};"
     )
 
 
