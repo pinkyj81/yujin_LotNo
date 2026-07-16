@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>매출 내역</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="traceability-page">
+    <nav class="navbar">
+        <div class="container nav-inner">
+            <a href="/" class="logo">
+                <img src="{{ url_for('static', filename='images/logo.gif') }}" alt="유진금속공업" class="logo-img">
+                <span class="logo-text">유진금속공업(주)</span>
+            </a>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('ingot_fifo') }}" class="nav-link-fifo">인고트 FIFO</a></li>
+                <li class="dropdown">
+                    <details class="dropdown-details">
+                        <summary class="nav-link dropdown-toggle">Traceability</summary>
+                        <ul class="dropdown-menu">
+                            <li><a href="{{ url_for('index') }}" class="dropdown-item">인고트 입고 목록</a></li>
+                            <li><a href="{{ url_for('ingot_input') }}" class="dropdown-item">인고트 투입</a></li>
+                            <li><a href="{{ url_for('ingot_traceability') }}" class="dropdown-item">추적성 확인</a></li>
+                            <li><a href="{{ url_for('ingot_traceability_subul') }}" class="dropdown-item">매출 내역</a></li>
+                        </ul>
+                    </details>
+                </li>
+                <li><a href="#" class="nav-link">사용자 관리</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <section class="list-container">
+                <div class="traceability-sticky-panel">
+                    <div class="section-header">
+                        <h2><i data-lucide="clipboard-list" class="title-icon"></i> 매출 내역</h2>
+                    </div>
+
+                    <p class="result-count" style="margin-top: -6px; margin-bottom: 14px;">매출 정보(subulinfo) 목록을 조회합니다.</p>
+
+                    <form class="filter-form" action="{{ url_for('ingot_traceability_subul') }}" method="get">
+                        <div class="filter-group">
+                            <label for="start_date">시작 날짜:</label>
+                            <input id="start_date" name="start_date" type="date" class="form-control" value="{{ filters.start_date }}">
+                        </div>
+                        <div class="filter-group">
+                            <label for="end_date">종료 날짜:</label>
+                            <input id="end_date" name="end_date" type="date" class="form-control" value="{{ filters.end_date }}">
+                        </div>
+                        <div class="filter-group">
+                            <label for="company_name">업체명:</label>
+                            <input id="company_name" name="company_name" type="text" class="form-control" placeholder="업체명 일부 입력" value="{{ filters.company_name }}">
+                        </div>
+                        <div class="filter-group">
+                            <label for="product_name">품명/품번:</label>
+                            <input id="product_name" name="product_name" type="text" class="form-control" placeholder="품명 또는 품번 입력" value="{{ filters.product_name }}">
+                        </div>
+                        <div class="filter-group">
+                            <label for="lot_no">LOT No:</label>
+                            <input id="lot_no" name="lot_no" type="text" class="form-control" placeholder="LOT No 검색" value="{{ filters.lot_no }}">
+                        </div>
+                        <div class="filter-group filter-actions">
+                            <button type="submit" class="btn btn-primary"><i data-lucide="search" class="btn-icon"></i> 조회</button>
+                            <a href="{{ url_for('ingot_traceability_subul') }}" class="btn btn-secondary">초기화</a>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="traceability-body-scroll">
+                    {% if error %}
+                    <div class="error-banner">{{ error }}</div>
+                    {% endif %}
+
+                    <div class="table-responsive">
+                        <table class="data-table traceability-main-table">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>매출일자</th>
+                                    <th>업체명</th>
+                                    <th>소재번호</th>
+                                    <th>품번</th>
+                                    <th>품명</th>
+                                    <th>수량</th>
+                                    <th>LOT No</th>
+                                    <th>전표번호</th>
+                                    <th>오더번호</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if subul_rows %}
+                                    {% for item in subul_rows %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>{{ item.ChulDate }}</td>
+                                        <td>{{ item.CustName }}</td>
+                                        <td><strong>{{ item.SojeNo }}</strong></td>
+                                        <td>{{ item.CodeNo }}</td>
+                                        <td>{{ item.CodeName }}</td>
+                                        <td style="text-align: right;">{{ item.QtyDisplay }}</td>
+                                        <td>
+                                            {% set primary_lot = (item.LotNo.split(',')[0] if item.LotNo else '')|trim %}
+                                            {% if primary_lot %}
+                                            <button
+                                                type="button"
+                                                class="qty-detail-btn"
+                                                data-detail-type="traceability-mapping"
+                                                data-start-date="{{ filters.start_date }}"
+                                                data-end-date="{{ filters.end_date }}"
+                                                data-company-name="{{ item.CustName }}"
+                                                data-product-name="{{ item.SojeNo }}"
+                                                data-lot-no="{{ primary_lot }}"
+                                            >{{ item.LotNo }}</button>
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ item.InvoiceNo }}</td>
+                                        <td>{{ item.OrderNo }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="10" class="empty-state">조회 결과가 없습니다.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <p class="result-count">총 {{ total_count }}건의 매출 데이터</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div class="modal-backdrop" id="mappingModal" hidden>
+        <div class="modal-panel modal-panel-wide">
+            <div class="modal-header">
+                <h3><i data-lucide="list-filter" class="btn-icon"></i> 추적성 확인</h3>
+                <button type="button" class="modal-close" id="mappingModalCloseBtn" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-form">
+                <p class="result-count" id="mappingModalMeta" style="text-align: left; margin-top: 0; margin-bottom: 12px;"></p>
+                <div class="table-responsive" style="margin-top: 0;">
+                    <table class="subul-detail-table">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>업체명</th>
+                                <th>소재번호</th>
+                                <th>품명</th>
+                                <th>LOT No</th>
+                                <th>매출 수량</th>
+                                <th>열처리 수량</th>
+                                <th>생산 수량</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mappingModalTbody">
+                            <tr><td colspan="8" class="empty-state">LOT No를 클릭하면 추적성 데이터가 표시됩니다.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const mappingModalEl = document.getElementById("mappingModal");
+        const mappingModalCloseBtn = document.getElementById("mappingModalCloseBtn");
+        const mappingModalTbody = document.getElementById("mappingModalTbody");
+        const mappingModalMeta = document.getElementById("mappingModalMeta");
+        let mappingModalContext = {
+            startDate: '',
+            endDate: '',
+            companyName: '',
+            productName: '',
+        };
+
+        function openMappingModal() {
+            mappingModalEl.hidden = false;
+            document.body.classList.add("modal-open");
+        }
+
+        function closeMappingModal() {
+            mappingModalEl.hidden = true;
+            document.body.classList.remove("modal-open");
+        }
+
+        function formatQty(value) {
+            const numberValue = Number(value || 0);
+            return numberValue.toLocaleString();
+        }
+
+        function buildTraceabilityUrl(row) {
+            const params = new URLSearchParams({
+                start_date: mappingModalContext.startDate || '',
+                end_date: mappingModalContext.endDate || '',
+                company_name: row.CompanyName || mappingModalContext.companyName || '',
+                product_name: row.SojeNo || mappingModalContext.productName || '',
+                lot_no: row.LotNo || '',
+            });
+            return `/ingot/traceability?${params.toString()}`;
+        }
+
+        function renderMappingRows(rows) {
+            if (!rows || rows.length === 0) {
+                mappingModalTbody.innerHTML = '<tr><td colspan="8" class="empty-state">조회 결과가 없습니다.</td></tr>';
+                return;
+            }
+
+            mappingModalTbody.innerHTML = rows.map((row, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${row.CompanyName ?? '-'}</td>
+                    <td><strong>${row.SojeNo ?? '-'}</strong></td>
+                    <td>${row.ProductName ?? '-'}</td>
+                    <td>${row.LotNo ? `<a href="${buildTraceabilityUrl(row)}" class="lot-link">${row.LotNo}</a>` : '-'}</td>
+                    <td style="text-align: right;">${formatQty(row.SubulQty)}</td>
+                    <td style="text-align: right;">${formatQty(row.HeatQty)}</td>
+                    <td style="text-align: right;">${formatQty(row.ProdQty)}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function openMappingFromLot(buttonEl) {
+            const startDate = buttonEl.dataset.startDate || '';
+            const endDate = buttonEl.dataset.endDate || '';
+            const companyName = buttonEl.dataset.companyName || '';
+            const productName = buttonEl.dataset.productName || '';
+            const lotNo = buttonEl.dataset.lotNo || '';
+
+            mappingModalContext = {
+                startDate,
+                endDate,
+                companyName,
+                productName,
+            };
+
+            mappingModalMeta.textContent = `업체: ${companyName || '-'} / 소재번호: ${productName || '-'} / LOT No: ${lotNo || '-'}`;
+            mappingModalTbody.innerHTML = '<tr><td colspan="8" class="empty-state">데이터를 불러오는 중입니다...</td></tr>';
+            openMappingModal();
+
+            try {
+                const params = new URLSearchParams({
+                    start_date: startDate,
+                    end_date: endDate,
+                    company_name: companyName,
+                    product_name: productName,
+                    lot_no: lotNo,
+                });
+                const response = await fetch(`/api/traceability/mappings?${params.toString()}`);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || '추적성 조회 실패');
+                }
+
+                renderMappingRows(data.rows || []);
+            } catch (error) {
+                mappingModalTbody.innerHTML = `<tr><td colspan="8" class="empty-state">${error.message}</td></tr>`;
+            }
+        }
+
+        document.querySelectorAll('.qty-detail-btn[data-detail-type="traceability-mapping"]').forEach((btn) => {
+            btn.addEventListener('click', () => openMappingFromLot(btn));
+        });
+
+        mappingModalCloseBtn.addEventListener('click', closeMappingModal);
+        mappingModalEl.addEventListener('click', (event) => {
+            if (event.target === mappingModalEl) {
+                closeMappingModal();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !mappingModalEl.hidden) {
+                closeMappingModal();
+            }
+        });
+    </script>
+</body>
+</html>

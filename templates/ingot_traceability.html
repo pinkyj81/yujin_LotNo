@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>제품 추적성 확인</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="traceability-page">
+    <nav class="navbar">
+        <div class="container nav-inner">
+            <a href="/" class="logo">
+                <img src="{{ url_for('static', filename='images/logo.gif') }}" alt="유진금속공업" class="logo-img">
+                <span class="logo-text">유진금속공업(주)</span>
+            </a>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('ingot_fifo') }}" class="nav-link-fifo">인고트 FIFO</a></li>
+                <li class="dropdown">
+                    <details class="dropdown-details">
+                        <summary class="nav-link dropdown-toggle">Traceability</summary>
+                        <ul class="dropdown-menu">
+                            <li><a href="{{ url_for('index') }}" class="dropdown-item">인고트 입고 목록</a></li>
+                            <li><a href="{{ url_for('ingot_input') }}" class="dropdown-item">인고트 투입</a></li>
+                            <li><a href="{{ url_for('ingot_traceability') }}" class="dropdown-item">추적성 확인</a></li>
+                            <li><a href="{{ url_for('ingot_traceability_subul') }}" class="dropdown-item">매출 내역</a></li>
+                        </ul>
+                    </details>
+                </li>
+                <li><a href="#" class="nav-link">사용자 관리</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <section class="list-container">
+                <div class="traceability-sticky-panel">
+                    <div class="section-header">
+                        <h2><i data-lucide="clipboard-list" class="title-icon"></i> 제품 추적성 확인</h2>
+                    </div>
+
+                    <p class="result-count" style="margin-top: -6px; margin-bottom: 14px;">LOT No 기준으로 매출, 열처리, 생산 수량을 집계합니다.</p>
+
+                    <form class="filter-form" action="{{ url_for('ingot_traceability') }}" method="get">
+                        <div class="filter-group">
+                            <label for="start_date">시작 날짜:</label>
+                            <input id="start_date" name="start_date" type="date" class="form-control" value="{{ filters.start_date }}">
+                        </div>
+                        <div class="filter-group">
+                            <label for="end_date">종료 날짜:</label>
+                            <input id="end_date" name="end_date" type="date" class="form-control" value="{{ filters.end_date }}">
+                        </div>
+                        <div class="filter-group">
+                            <label for="company_name">업체명:</label>
+                            <input id="company_name" name="company_name" type="text" class="form-control" placeholder="업체명 일부 입력" value="{{ filters.company_name }}">
+                        </div>
+                        <div class="filter-group">
+                            <label for="product_name">품명:</label>
+                            <input id="product_name" name="product_name" type="text" class="form-control" placeholder="품명 일부 입력" value="{{ filters.product_name }}">
+                        </div>
+                        <div class="filter-group">
+                            <label for="lot_no">LOT No:</label>
+                            <input id="lot_no" name="lot_no" type="text" class="form-control" placeholder="LOT No 검색" value="{{ filters.lot_no }}">
+                        </div>
+                        <div class="filter-group filter-actions">
+                            <button type="submit" class="btn btn-primary"><i data-lucide="search" class="btn-icon"></i> 조회</button>
+                            <a href="{{ url_for('ingot_traceability') }}" class="btn btn-secondary">초기화</a>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="traceability-body-scroll">
+                    {% if error %}
+                    <div class="error-banner">{{ error }}</div>
+                    {% endif %}
+
+                    <div class="table-responsive">
+                        <table class="data-table traceability-main-table">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>업체명</th>
+                                    <th>소재번호</th>
+                                    <th>품명</th>
+                                    <th>LOT No</th>
+                                    <th>매출 수량</th>
+                                    <th>열처리 수량</th>
+                                    <th>생산 수량</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if mapping_list %}
+                                    {% for item in mapping_list %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>{{ item.CompanyName }}</td>
+                                        <td><strong>{{ item.SojeNo }}</strong></td>
+                                        <td>{{ item.ProductName }}</td>
+                                        <td><strong style="color: #667eea;">{{ item.LotNo }}</strong></td>
+                                        <td style="text-align: right;">
+                                            <button
+                                                type="button"
+                                                class="qty-detail-btn"
+                                                data-detail-type="subul"
+                                                data-sojeno="{{ item.SojeNo }}"
+                                                data-lotno="{{ item.LotNo }}"
+                                                data-start-date="{{ filters.start_date }}"
+                                                data-end-date="{{ filters.end_date }}"
+                                            >{{ '{:,}'.format(item.SubulQty|int) if item.SubulQty else '0' }}</button>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <button
+                                                type="button"
+                                                class="qty-detail-btn"
+                                                data-detail-type="heat"
+                                                data-sojeno="{{ item.SojeNo }}"
+                                                data-lotno="{{ item.LotNo }}"
+                                                data-start-date="{{ filters.start_date }}"
+                                                data-end-date="{{ filters.end_date }}"
+                                            >{{ '{:,}'.format(item.HeatQty|int) if item.HeatQty else '0' }}</button>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <button
+                                                type="button"
+                                                class="qty-detail-btn"
+                                                data-detail-type="prod"
+                                                data-sojeno="{{ item.SojeNo }}"
+                                                data-lotno="{{ item.LotNo }}"
+                                                data-start-date="{{ filters.start_date }}"
+                                                data-end-date="{{ filters.end_date }}"
+                                            >{{ '{:,}'.format(item.ProdQty|int) if item.ProdQty else '0' }}</button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="8" class="empty-state">조회 결과가 없습니다.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <p class="result-count">총 {{ total_count }}건의 데이터</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div class="modal-backdrop" id="subulDetailModal" hidden>
+        <div class="modal-panel modal-panel-wide">
+            <div class="modal-header">
+                <h3 id="qtyDetailTitle"><i data-lucide="table-properties" class="btn-icon"></i> 상세 내역</h3>
+                <button type="button" class="modal-close" id="subulDetailCloseBtn" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-form">
+                <p class="result-count" id="subulDetailMeta" style="text-align: left; margin-top: 0; margin-bottom: 12px;"></p>
+                <div class="table-responsive" style="margin-top: 0;">
+                    <table class="subul-detail-table">
+                        <thead id="detailTableHead"></thead>
+                        <tbody id="subulDetailTbody">
+                            <tr><td colspan="10" class="empty-state">수량을 클릭하면 상세가 표시됩니다.</td></tr>
+                        </tbody>
+                        <tfoot id="detailTableFoot"></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const modalEl = document.getElementById("subulDetailModal");
+        const closeBtn = document.getElementById("subulDetailCloseBtn");
+        const titleEl = document.getElementById("qtyDetailTitle");
+        const theadEl = document.getElementById("detailTableHead");
+        const tfootEl = document.getElementById("detailTableFoot");
+        const tbodyEl = document.getElementById("subulDetailTbody");
+        const metaEl = document.getElementById("subulDetailMeta");
+        let detailContext = {
+            startDate: "",
+            endDate: "",
+        };
+
+        const detailConfigs = {
+            subul: {
+                title: "매출 상세 내역",
+                endpoint: "/api/traceability/subul-details",
+                columns: [
+                    { key: "ChulDate", label: "매출일자" },
+                    { key: "QtyDisplay", label: "수량", align: "right" },
+                    { key: "CustCode", label: "거래처코드" },
+                    { key: "CustName", label: "거래처명" },
+                    { key: "CodeNo", label: "품번" },
+                    { key: "CodeName", label: "품명" },
+                    { key: "InvoiceNo", label: "전표번호" },
+                    { key: "OrderNo", label: "오더번호" },
+                    { key: "LotNo", label: "Lot No 원본" },
+                ],
+            },
+            heat: {
+                title: "열처리 상세 내역",
+                endpoint: "/api/traceability/heat-details",
+                columns: [
+                    { key: "HeatDate", label: "열처리일자" },
+                    { key: "HeatTime", label: "열처리시간" },
+                    { key: "QtyDisplay", label: "수량", align: "right" },
+                    { key: "Install", label: "설비" },
+                    { key: "Worker", label: "작업자" },
+                    { key: "CodeNo", label: "품번" },
+                    { key: "CodeName", label: "품명" },
+                    { key: "SilNo", label: "실적번호" },
+                    { key: "SeqNo", label: "순번" },
+                    { key: "LotNo", label: "Lot No" },
+                ],
+            },
+            prod: {
+                title: "생산 상세 내역",
+                endpoint: "/api/traceability/prod-details",
+                columns: [
+                    { key: "ProdDate", label: "생산일자" },
+                    { key: "QtyDisplay", label: "수량", align: "right" },
+                    { key: "CodeNo", label: "품번" },
+                    { key: "CodeName", label: "품명" },
+                    { key: "InGotLot", label: "InGotLot" },
+                    { key: "JungjaLot", label: "중자LOT" },
+                    { key: "MoldCode", label: "금형품번" },
+                    { key: "MoldName", label: "금형품명" },
+                    { key: "GeneratedLot", label: "생성 LOT" },
+                ],
+            },
+        };
+
+        function renderTableHead(detailType) {
+            const config = detailConfigs[detailType] || detailConfigs.subul;
+            const headers = ["<th>No</th>", ...config.columns.map((column) => `<th>${column.label}</th>`)].join("");
+            theadEl.innerHTML = `<tr>${headers}</tr>`;
+        }
+
+        function renderTableFoot(detailType, totalQty) {
+            const config = detailConfigs[detailType] || detailConfigs.subul;
+            const colCount = config.columns.length + 1;
+            const tailCols = Math.max(colCount - 3, 0);
+            const tailCell = tailCols > 0 ? `<th colspan="${tailCols}"></th>` : "";
+            tfootEl.innerHTML = `
+                <tr class="subul-detail-total-row">
+                    <th colspan="2">합계</th>
+                    <th style="text-align: right;">${Number(totalQty || 0).toLocaleString()}</th>
+                    ${tailCell}
+                </tr>
+            `;
+        }
+
+        function openSubulModal() {
+            modalEl.hidden = false;
+            document.body.classList.add("modal-open");
+        }
+
+        function closeSubulModal() {
+            modalEl.hidden = true;
+            document.body.classList.remove("modal-open");
+        }
+
+        function buildIngotListUrl(row) {
+            const params = new URLSearchParams({
+                start_date: detailContext.startDate || "",
+                end_date: detailContext.endDate || "",
+                lot_no: row.InGotLot || "",
+            });
+            return `/?${params.toString()}`;
+        }
+
+        function renderCell(detailType, column, row) {
+            const value = row[column.key] ?? "-";
+
+            if (detailType === "prod" && column.key === "InGotLot" && value && value !== "-") {
+                return `<td><a href="${buildIngotListUrl(row)}" class="lot-link">${value}</a></td>`;
+            }
+
+            return `<td${column.align === "right" ? ' style="text-align: right;"' : ""}>${value}</td>`;
+        }
+
+        function setSubulRows(detailType, rows) {
+            const config = detailConfigs[detailType] || detailConfigs.subul;
+            if (!rows || rows.length === 0) {
+                tbodyEl.innerHTML = `<tr><td colspan="${config.columns.length + 1}" class="empty-state">조회된 상세 데이터가 없습니다.</td></tr>`;
+                renderTableFoot(detailType, 0);
+                return;
+            }
+
+            tbodyEl.innerHTML = rows.map((row, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    ${config.columns.map((column) => renderCell(detailType, column, row)).join("")}
+                </tr>
+            `).join('');
+
+            const total = rows.reduce((sum, row) => sum + Number(row.Qty || 0), 0);
+            renderTableFoot(detailType, total);
+        }
+
+        async function loadSubulDetails(buttonEl) {
+            const detailType = buttonEl.dataset.detailType || "subul";
+            const config = detailConfigs[detailType] || detailConfigs.subul;
+            const sojeNo = buttonEl.dataset.sojeno || "";
+            const lotNo = buttonEl.dataset.lotno || "";
+            const startDate = buttonEl.dataset.startDate || "";
+            const endDate = buttonEl.dataset.endDate || "";
+
+            detailContext = {
+                startDate,
+                endDate,
+            };
+
+            titleEl.innerHTML = `<i data-lucide="table-properties" class="btn-icon"></i> ${config.title}`;
+            metaEl.textContent = `소재번호: ${sojeNo} / LOT No: ${lotNo}`;
+            renderTableHead(detailType);
+            renderTableFoot(detailType, 0);
+            tbodyEl.innerHTML = `<tr><td colspan="${config.columns.length + 1}" class="empty-state">데이터를 불러오는 중입니다...</td></tr>`;
+            openSubulModal();
+            lucide.createIcons();
+
+            try {
+                const params = new URLSearchParams({
+                    soje_no: sojeNo,
+                    lot_no: lotNo,
+                    start_date: startDate,
+                    end_date: endDate,
+                });
+                const response = await fetch(`${config.endpoint}?${params.toString()}`);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || "상세 조회 실패");
+                }
+
+                setSubulRows(detailType, data.rows || []);
+            } catch (error) {
+                tbodyEl.innerHTML = `<tr><td colspan="${config.columns.length + 1}" class="empty-state">${error.message}</td></tr>`;
+                renderTableFoot(detailType, 0);
+            }
+        }
+
+        document.querySelectorAll(".qty-detail-btn").forEach((btn) => {
+            btn.addEventListener("click", () => loadSubulDetails(btn));
+        });
+
+        closeBtn.addEventListener("click", closeSubulModal);
+        modalEl.addEventListener("click", (event) => {
+            if (event.target === modalEl) {
+                closeSubulModal();
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !modalEl.hidden) {
+                closeSubulModal();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>인고트 입고 목록</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container nav-inner">
+            <a href="/" class="logo">
+                <img src="{{ url_for('static', filename='images/logo.gif') }}" alt="유진금속공업" class="logo-img">
+                <span class="logo-text">유진금속공업(주)</span>
+            </a>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('ingot_fifo') }}" class="nav-link-fifo">인고트 FIFO</a></li>
+                <li class="dropdown">
+                    <details class="dropdown-details">
+                        <summary class="nav-link dropdown-toggle">Traceability</summary>
+                        <ul class="dropdown-menu">
+                            <li><a href="{{ url_for('index') }}" class="dropdown-item">인고트 입고 목록</a></li>
+                            <li><a href="{{ url_for('ingot_input') }}" class="dropdown-item">인고트 투입</a></li>
+                            <li><a href="{{ url_for('ingot_traceability') }}" class="dropdown-item">추적성 확인</a></li>
+                            <li><a href="{{ url_for('ingot_traceability_subul') }}" class="dropdown-item">매출 내역</a></li>
+                        </ul>
+                    </details>
+                </li>
+                <li><a href="#" class="nav-link">사용자 관리</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <section class="list-container">
+                <div class="section-header">
+                    <h2><i data-lucide="clipboard-list" class="title-icon"></i> 인고트 입고 목록</h2>
+                    <div class="action-buttons top-actions">
+                        <button type="button" class="btn btn-primary" id="openInspectionModal"><i data-lucide="plus" class="btn-icon"></i> 새 검사 입력</button>
+                    </div>
+                </div>
+
+                {% if notice == 'created' %}
+                <div class="success-banner">검사 데이터가 등록되었습니다.</div>
+                {% elif notice == 'updated' %}
+                <div class="success-banner">검사 데이터가 수정되었습니다.</div>
+                {% elif notice == 'deleted' %}
+                <div class="success-banner">검사 데이터가 삭제되었습니다.</div>
+                {% elif notice.startswith('error:') %}
+                <div class="error-banner">{{ notice[6:] }}</div>
+                {% endif %}
+
+                <form class="filter-form" action="/" method="get">
+                    <div class="filter-group">
+                        <label for="start_date">시작 날짜:</label>
+                        <input id="start_date" name="start_date" type="date" class="form-control" value="{{ filters.start_date }}">
+                    </div>
+                    <div class="filter-group">
+                        <label for="end_date">종료 날짜:</label>
+                        <input id="end_date" name="end_date" type="date" class="form-control" value="{{ filters.end_date }}">
+                    </div>
+                    <div class="filter-group">
+                        <label for="company_name">업체명:</label>
+                        <input id="company_name" name="company_name" type="text" class="form-control" placeholder="업체명 검색" value="{{ filters.company_name }}">
+                    </div>
+                    <div class="filter-group">
+                        <label for="product_name">품명:</label>
+                        <input id="product_name" name="product_name" type="text" class="form-control" placeholder="품명 검색" value="{{ filters.product_name }}">
+                    </div>
+                    <div class="filter-group">
+                        <label for="lot_no">Lot No:</label>
+                        <input id="lot_no" name="lot_no" type="text" class="form-control" placeholder="Lot No 검색" value="{{ filters.lot_no }}">
+                    </div>
+                    <div class="filter-group filter-actions">
+                        <button type="submit" class="btn btn-primary"><i data-lucide="search" class="btn-icon"></i> 검색</button>
+                    </div>
+                </form>
+
+                {% if error %}
+                <div class="error-banner">{{ error }}</div>
+                {% endif %}
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>구분</th>
+                                <th>검사일자</th>
+                                <th>업체코드</th>
+                                <th>업체명</th>
+                                <th>품번</th>
+                                <th>품명</th>
+                                <th>수량</th>
+                                <th>번들수</th>
+                                <th>Lot No</th>
+                                <th>검사자</th>
+                                <th>결과</th>
+                                <th>비고</th>
+                                <th>첨부파일</th>
+                                <th>파단검사</th>
+                                <th>화학성분</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if inspections %}
+                                {% for inspection in inspections %}
+                                <tr>
+                                    <td>{{ inspection.InspectionID }}</td>
+                                    <td><span class="badge badge-warning">{{ inspection.ScreenType }}</span></td>
+                                    <td>{{ inspection.InspectionDate }}</td>
+                                    <td>{{ inspection.CompanyCode }}</td>
+                                    <td>{{ inspection.CompanyName }}</td>
+                                    <td>{{ inspection.PartNumber }}</td>
+                                    <td>{{ inspection.ProductName }}</td>
+                                    <td>{{ inspection.QuantityDisplay }}</td>
+                                    <td>{{ inspection.BundleCountDisplay }}</td>
+                                    <td>
+                                        {% if inspection.LotNo and inspection.LotNo != '-' %}
+                                        <button
+                                            type="button"
+                                            class="qty-detail-btn lot-barcode-btn"
+                                            data-lot-no="{{ inspection.LotNo }}"
+                                        >{{ inspection.LotNo }}</button>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ inspection.Inspector }}</td>
+                                    <td>
+                                        {% if inspection.Result == 'PASS' %}
+                                        <span class="badge badge-success">PASS</span>
+                                        {% else %}
+                                        <span class="badge badge-fail">{{ inspection.Result }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ inspection.Notes }}</td>
+                                    <td>
+                                        {% if inspection.FilePath %}
+                                        <span class="file-link"><i data-lucide="paperclip" class="inline-icon"></i> 파일있음</span>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if inspection.BreakFilePath %}
+                                        <span class="file-link"><i data-lucide="file-text" class="inline-icon"></i> 파일있음</span>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if inspection.HasChemical %}
+                                        <button class="btn-tiny btn-green"><i data-lucide="flask-conical" class="inline-icon"></i> 성분</button>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="table-action-row">
+                                            <button
+                                                type="button"
+                                                class="btn-small btn-edit edit-inspection-btn"
+                                                data-id="{{ inspection.InspectionID }}"
+                                                data-screen-type="{{ inspection.ScreenType }}"
+                                                data-inspection-date="{{ inspection.InspectionDate }}"
+                                                data-company-code="{{ inspection.CompanyCode if inspection.CompanyCode != '-' else '' }}"
+                                                data-company-name="{{ inspection.CompanyName if inspection.CompanyName != '-' else '' }}"
+                                                data-part-number="{{ inspection.PartNumber if inspection.PartNumber != '-' else '' }}"
+                                                data-product-name="{{ inspection.ProductName if inspection.ProductName != '-' else '' }}"
+                                                data-quantity="{{ inspection.Quantity }}"
+                                                data-bundle-count="{{ inspection.BundleCount }}"
+                                                data-lot-no="{{ inspection.LotNo if inspection.LotNo != '-' else '' }}"
+                                                data-inspector="{{ inspection.Inspector if inspection.Inspector != '-' else '' }}"
+                                                data-result="{{ inspection.Result if inspection.Result != '-' else '' }}"
+                                                data-notes="{{ inspection.Notes if inspection.Notes != '-' else '' }}"
+                                            >수정</button>
+                                            <form class="inline-action-form" method="post" action="{{ url_for('remove_inspection', inspection_id=inspection.InspectionID) }}" onsubmit="return confirm('이 검사 데이터를 삭제하시겠습니까?');">
+                                                <button type="submit" class="btn-small btn-delete">삭제</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="17" class="empty-state">조회 결과가 없습니다.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="result-count">총 {{ inspections|length }}건의 검사 데이터</p>
+            </section>
+        </div>
+    </main>
+
+    <div class="modal-backdrop" id="inspectionModal" hidden>
+        <div class="modal-panel modal-panel-wide">
+            <div class="modal-header">
+                <h3 id="inspectionModalTitle"><i data-lucide="square-pen" class="btn-icon"></i> 새 검사 입력</h3>
+                <button type="button" class="modal-close" id="closeInspectionModal" aria-label="닫기">×</button>
+            </div>
+            <form method="post" action="/inspection/new" class="modal-form" enctype="multipart/form-data" id="inspectionForm">
+                <div class="modal-toolbar">
+                    <button type="button" class="btn btn-light" id="loadInboundDataBtn"><i data-lucide="clipboard-plus" class="btn-icon"></i> 입고 데이터 불러오기</button>
+                </div>
+
+                <div class="modal-table-wrap">
+                    <table class="input-table">
+                        <thead>
+                            <tr>
+                                <th>구분</th>
+                                <th>검사날짜</th>
+                                <th>업체코드</th>
+                                <th>업체명</th>
+                                <th>품번</th>
+                                <th>품명</th>
+                                <th>수량</th>
+                                <th>번들수</th>
+                                <th>Lot No</th>
+                                <th>검사자</th>
+                                <th>검사결과</th>
+                                <th>비고</th>
+                                <th>첨부파일</th>
+                                <th>파단검사(PDF)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <select id="screen_type" name="screen_type" required class="table-input">
+                                        <option value="">선택</option>
+                                        <option value="INGOT">INGOT</option>
+                                        <option value="수입검사">수입검사</option>
+                                    </select>
+                                </td>
+                                <td><input id="inspection_date" name="inspection_date" type="date" value="{{ default_inspection_date }}" required class="table-input"></td>
+                                <td>
+                                    <input id="company_code" name="company_code" type="hidden">
+                                    <button type="button" id="openCompanyPicker" class="table-picker-button">업체 검색</button>
+                                </td>
+                                <td><span id="company_name_display" class="value-display">-</span></td>
+                                <td>
+                                    <input id="part_number" name="part_number" type="hidden">
+                                    <button type="button" id="openProductPicker" class="table-picker-button">품번 검색</button>
+                                </td>
+                                <td><span id="product_name_display" class="value-display">-</span></td>
+                                <td><input id="quantity" name="quantity" type="number" min="1" placeholder="수량" class="table-input"></td>
+                                <td><input id="bundle_count" name="bundle_count" type="number" min="0" placeholder="번들수" class="table-input"></td>
+                                <td><input id="lot_no_modal" name="lot_no" type="text" placeholder="LOT-2026-001" required class="table-input"></td>
+                                <td><input id="inspector" name="inspector" type="text" placeholder="검사자" required class="table-input"></td>
+                                <td>
+                                    <select id="result" name="result" required class="table-input">
+                                        <option value="">선택</option>
+                                        <option value="PASS">PASS</option>
+                                        <option value="FAIL">FAIL</option>
+                                    </select>
+                                </td>
+                                <td><input id="notes" name="notes" type="text" placeholder="비고" class="table-input"></td>
+                                <td><input id="file" name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx" class="table-input table-file-input"></td>
+                                <td><input id="break_file" name="break_file" type="file" accept=".pdf" class="table-input table-file-input"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelInspectionModal">취소</button>
+                    <button type="submit" class="btn btn-primary" id="inspectionSubmitBtn"><i data-lucide="check-square" class="btn-icon"></i> 등록</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-backdrop modal-nested" id="companyPickerModal" hidden>
+        <div class="modal-panel company-picker-panel">
+            <div class="modal-header">
+                <h3><i data-lucide="building-2" class="btn-icon"></i> 업체 검색</h3>
+                <button type="button" class="modal-close" id="closeCompanyPicker" aria-label="닫기">×</button>
+            </div>
+            <div class="company-picker-body">
+                <div class="company-search-row">
+                    <input id="companySearchInput" type="text" class="company-search-input" placeholder="업체코드 또는 업체명 검색">
+                </div>
+                <div class="company-picker-table-wrap">
+                    <table class="company-picker-table">
+                        <thead>
+                            <tr>
+                                <th>업체코드</th>
+                                <th>업체명</th>
+                                <th>선택</th>
+                            </tr>
+                        </thead>
+                        <tbody id="companyPickerTableBody">
+                            {% for company in companies %}
+                            <tr data-code="{{ company.CustCode }}" data-name="{{ company.CustName }}">
+                                <td>{{ company.CustCode }}</td>
+                                <td>{{ company.CustName }}</td>
+                                <td><button type="button" class="btn-tiny company-select-btn" data-code="{{ company.CustCode }}" data-name="{{ company.CustName }}">선택</button></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop modal-nested" id="productPickerModal" hidden>
+        <div class="modal-panel company-picker-panel">
+            <div class="modal-header">
+                <h3><i data-lucide="package-search" class="btn-icon"></i> 품번 검색</h3>
+                <button type="button" class="modal-close" id="closeProductPicker" aria-label="닫기">×</button>
+            </div>
+            <div class="company-picker-body">
+                <div class="company-search-row">
+                    <input id="productSearchInput" type="text" class="company-search-input" placeholder="품번 또는 품명 검색">
+                </div>
+                <div class="company-picker-table-wrap">
+                    <table class="company-picker-table">
+                        <thead>
+                            <tr>
+                                <th>품번</th>
+                                <th>품명</th>
+                                <th>선택</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productPickerTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="barcodeModal" hidden>
+        <div class="modal-panel barcode-modal-panel">
+            <div class="modal-header">
+                <h3><i data-lucide="scan-line" class="btn-icon"></i> LOT 바코드</h3>
+                <button type="button" class="modal-close" id="closeBarcodeModal" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-form">
+                <div class="barcode-control-row">
+                    <label for="barcodePrintQty" class="barcode-control-label">출력 수량</label>
+                    <input type="number" id="barcodePrintQty" class="barcode-qty-input" min="1" step="1" value="1">
+                </div>
+                <div class="barcode-preview-card" id="barcodePrintArea">
+                    <p class="barcode-lot-label">LOT No</p>
+                    <h4 id="barcodeLotValue" class="barcode-lot-value">-</h4>
+                    <div class="barcode-codes-row">
+                        <svg id="barcodeSvg"></svg>
+                        <div class="qr-block">
+                            <div id="qrContainer"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="closeBarcodeModalSecondary">닫기</button>
+                    <button type="button" class="btn btn-primary" id="printBarcodeBtn"><i data-lucide="printer" class="btn-icon"></i> 프린트</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script id="companyLookupData" type="application/json">{{ company_lookup|tojson }}</script>
+
+    <script>
+        lucide.createIcons();
+
+        const inspectionModal = document.getElementById('inspectionModal');
+        const inspectionForm = document.getElementById('inspectionForm');
+        const inspectionModalTitle = document.getElementById('inspectionModalTitle');
+        const inspectionSubmitBtn = document.getElementById('inspectionSubmitBtn');
+        const openInspectionModal = document.getElementById('openInspectionModal');
+        const closeInspectionModal = document.getElementById('closeInspectionModal');
+        const cancelInspectionModal = document.getElementById('cancelInspectionModal');
+        const companyPickerModal = document.getElementById('companyPickerModal');
+        const productPickerModal = document.getElementById('productPickerModal');
+        const openCompanyPicker = document.getElementById('openCompanyPicker');
+        const openProductPicker = document.getElementById('openProductPicker');
+        const closeCompanyPicker = document.getElementById('closeCompanyPicker');
+        const closeProductPicker = document.getElementById('closeProductPicker');
+        const companySearchInput = document.getElementById('companySearchInput');
+        const productSearchInput = document.getElementById('productSearchInput');
+        const companyPickerTableBody = document.getElementById('companyPickerTableBody');
+        const productPickerTableBody = document.getElementById('productPickerTableBody');
+        const barcodeModal = document.getElementById('barcodeModal');
+        const closeBarcodeModal = document.getElementById('closeBarcodeModal');
+        const closeBarcodeModalSecondary = document.getElementById('closeBarcodeModalSecondary');
+        const printBarcodeBtn = document.getElementById('printBarcodeBtn');
+        const barcodePrintQty = document.getElementById('barcodePrintQty');
+        const barcodeLotValue = document.getElementById('barcodeLotValue');
+        const barcodeSvg = document.getElementById('barcodeSvg');
+        const companyCodeInput = document.getElementById('company_code');
+        const partNumberInput = document.getElementById('part_number');
+        const screenTypeInput = document.getElementById('screen_type');
+        const inspectionDateInput = document.getElementById('inspection_date');
+        const companyNameDisplay = document.getElementById('company_name_display');
+        const productNameDisplay = document.getElementById('product_name_display');
+        const quantityInput = document.getElementById('quantity');
+        const bundleCountInput = document.getElementById('bundle_count');
+        const lotNoModalInput = document.getElementById('lot_no_modal');
+        const inspectorInput = document.getElementById('inspector');
+        const resultInput = document.getElementById('result');
+        const notesInput = document.getElementById('notes');
+        const loadInboundDataBtn = document.getElementById('loadInboundDataBtn');
+        const companyMap = JSON.parse(document.getElementById('companyLookupData').textContent);
+        let currentProducts = [];
+
+        function toggleInspectionModal(show) {
+            inspectionModal.hidden = !show;
+            document.body.classList.toggle('modal-open', show);
+        }
+
+        function resetInspectionForm() {
+            inspectionForm.action = '/inspection/new';
+            inspectionModalTitle.innerHTML = '<i data-lucide="square-pen" class="btn-icon"></i> 새 검사 입력';
+            inspectionSubmitBtn.innerHTML = '<i data-lucide="check-square" class="btn-icon"></i> 등록';
+            screenTypeInput.value = '';
+            inspectionDateInput.value = '{{ default_inspection_date }}';
+            companyCodeInput.value = '';
+            partNumberInput.value = '';
+            quantityInput.value = '';
+            bundleCountInput.value = '';
+            lotNoModalInput.value = '';
+            inspectorInput.value = '';
+            resultInput.value = '';
+            notesInput.value = '';
+            document.getElementById('file').value = '';
+            document.getElementById('break_file').value = '';
+            currentProducts = [];
+            syncCompanyDisplay();
+            syncProductDisplay();
+            lucide.createIcons();
+        }
+
+        function openEditInspection(button) {
+            inspectionForm.action = `/inspection/update/${button.dataset.id}`;
+            inspectionModalTitle.innerHTML = '<i data-lucide="square-pen" class="btn-icon"></i> 검사 데이터 수정';
+            inspectionSubmitBtn.innerHTML = '<i data-lucide="check-square" class="btn-icon"></i> 수정 저장';
+            screenTypeInput.value = button.dataset.screenType || '';
+            inspectionDateInput.value = button.dataset.inspectionDate || '{{ default_inspection_date }}';
+            companyCodeInput.value = button.dataset.companyCode || '';
+            companyNameDisplay.textContent = button.dataset.companyName || '-';
+            openCompanyPicker.textContent = button.dataset.companyCode || '업체 검색';
+            partNumberInput.value = button.dataset.partNumber || '';
+            currentProducts = [{ CodeNo: button.dataset.partNumber || '', CodeName: button.dataset.productName || '' }].filter((item) => item.CodeNo);
+            productNameDisplay.textContent = button.dataset.productName || '-';
+            openProductPicker.textContent = button.dataset.partNumber || '품번 검색';
+            quantityInput.value = button.dataset.quantity || '';
+            bundleCountInput.value = button.dataset.bundleCount || '';
+            lotNoModalInput.value = button.dataset.lotNo || '';
+            inspectorInput.value = button.dataset.inspector || '';
+            resultInput.value = button.dataset.result || '';
+            notesInput.value = button.dataset.notes || '';
+            document.getElementById('file').value = '';
+            document.getElementById('break_file').value = '';
+            toggleInspectionModal(true);
+            lucide.createIcons();
+        }
+
+        function toggleBarcodeModal(show) {
+            barcodeModal.hidden = !show;
+            document.body.classList.toggle('modal-open', show);
+        }
+
+        function openBarcodeModal(lotNo) {
+            barcodePrintQty.value = '1';
+            barcodeLotValue.textContent = lotNo || '-';
+            JsBarcode(barcodeSvg, lotNo || '-', {
+                format: 'CODE128',
+                displayValue: true,
+                fontSize: 18,
+                height: 80,
+                margin: 10,
+                background: '#ffffff',
+                lineColor: '#183252',
+            });
+            const qrCanvas = document.getElementById('qrContainer');
+            if (typeof QRCode !== 'undefined' && qrCanvas) {
+                qrCanvas.innerHTML = '';
+                new QRCode(qrCanvas, {
+                    text: lotNo || '-',
+                    width: 120,
+                    height: 120,
+                    colorDark: '#183252',
+                    colorLight: '#ffffff',
+                });
+            }
+            toggleBarcodeModal(true);
+        }
+
+        function printBarcode() {
+            const barcodeMarkup = barcodeSvg.outerHTML;
+            const printQty = Math.max(1, parseInt(barcodePrintQty.value || '1', 10) || 1);
+            const printWindow = window.open('', '_blank', 'width=600,height=700');
+            if (!printWindow) {
+                window.alert('팝업이 차단되어 프린트를 열 수 없습니다.');
+                return;
+            }
+
+            const barcodeCards = Array.from({ length: printQty }, () => `
+                <div class="barcode-card">
+                    ${barcodeMarkup}
+                </div>
+            `).join('');
+
+            printWindow.document.write(`
+                <!doctype html>
+                <html lang="ko">
+                <head>
+                    <meta charset="utf-8">
+                    <title>LOT 바코드 출력</title>
+                    <style>
+                        @page { size: 5cm 3cm; margin: 0; }
+                        html, body {
+                            width: 5cm;
+                            height: 3cm;
+                            margin: 0;
+                            padding: 0;
+                            overflow: hidden;
+                            font-family: 'Malgun Gothic', 'Segoe UI', sans-serif;
+                        }
+                        body {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        }
+                        .barcode-sheet {
+                            width: 5cm;
+                            height: 3cm;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        }
+                        .barcode-card { text-align: center; page-break-inside: avoid; break-inside: avoid; }
+                        svg { width: 4.7cm; height: auto; }
+                    </style>
+                </head>
+                <body>
+                    <div class="barcode-sheet">${barcodeCards}</div>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            window.onafterprint = function() { window.close(); };
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        function syncCompanyDisplay() {
+            companyNameDisplay.textContent = companyMap[companyCodeInput.value] || '-';
+            openCompanyPicker.textContent = companyCodeInput.value || '업체 검색';
+        }
+
+        function syncProductDisplay() {
+            const selected = currentProducts.find((product) => product.CodeNo === partNumberInput.value);
+            productNameDisplay.textContent = (selected && selected.CodeName) || '-';
+            openProductPicker.textContent = partNumberInput.value || '품번 검색';
+        }
+
+        function toggleCompanyPicker(show) {
+            companyPickerModal.hidden = !show;
+            if (show) {
+                companySearchInput.value = '';
+                filterCompanies();
+                companySearchInput.focus();
+            }
+        }
+
+        function filterCompanies() {
+            const query = companySearchInput.value.trim().toLowerCase();
+            const rows = companyPickerTableBody.querySelectorAll('tr');
+            rows.forEach((row) => {
+                const code = row.dataset.code.toLowerCase();
+                const name = row.dataset.name.toLowerCase();
+                row.hidden = query && !code.includes(query) && !name.includes(query);
+            });
+        }
+
+        function selectCompany(code, name) {
+            companyCodeInput.value = code;
+            partNumberInput.value = '';
+            currentProducts = [];
+            productNameDisplay.textContent = '-';
+            openProductPicker.textContent = '품번 검색';
+            companyNameDisplay.textContent = name || '-';
+            openCompanyPicker.textContent = code || '업체 검색';
+            toggleCompanyPicker(false);
+        }
+
+        function toggleProductPicker(show) {
+            productPickerModal.hidden = !show;
+            if (show) {
+                productSearchInput.value = '';
+                renderProducts(currentProducts);
+                productSearchInput.focus();
+            }
+        }
+
+        function renderProducts(products) {
+            if (!products.length) {
+                productPickerTableBody.innerHTML = '<tr><td colspan="3" class="empty-state">조회 결과가 없습니다.</td></tr>';
+                return;
+            }
+
+            productPickerTableBody.innerHTML = products.map((product) => `
+                <tr data-code="${product.CodeNo || ''}" data-name="${product.CodeName || ''}">
+                    <td>${product.CodeNo || '-'}</td>
+                    <td>${product.CodeName || '-'}</td>
+                    <td><button type="button" class="btn-tiny product-select-btn" data-code="${product.CodeNo || ''}" data-name="${product.CodeName || ''}">선택</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function filterProducts() {
+            const query = productSearchInput.value.trim().toLowerCase();
+            const filtered = currentProducts.filter((product) => {
+                const code = (product.CodeNo || '').toLowerCase();
+                const name = (product.CodeName || '').toLowerCase();
+                return !query || code.includes(query) || name.includes(query);
+            });
+            renderProducts(filtered);
+        }
+
+        async function loadProductsForCompany() {
+            if (!companyCodeInput.value) {
+                window.alert('먼저 업체를 선택해주세요.');
+                return false;
+            }
+
+            const response = await fetch(`/api/products?company_code=${encodeURIComponent(companyCodeInput.value)}`);
+            const payload = await response.json();
+            if (!payload.success) {
+                throw new Error(payload.error || '품번 데이터를 불러오지 못했습니다.');
+            }
+
+            currentProducts = payload.products || [];
+            return true;
+        }
+
+        function selectProduct(code, name) {
+            partNumberInput.value = code;
+            productNameDisplay.textContent = name || '-';
+            openProductPicker.textContent = code || '품번 검색';
+            toggleProductPicker(false);
+        }
+
+        openInspectionModal.addEventListener('click', () => {
+            resetInspectionForm();
+            toggleInspectionModal(true);
+        });
+        closeInspectionModal.addEventListener('click', () => {
+            toggleInspectionModal(false);
+            resetInspectionForm();
+        });
+        cancelInspectionModal.addEventListener('click', () => {
+            toggleInspectionModal(false);
+            resetInspectionForm();
+        });
+        closeBarcodeModal.addEventListener('click', () => toggleBarcodeModal(false));
+        closeBarcodeModalSecondary.addEventListener('click', () => toggleBarcodeModal(false));
+        printBarcodeBtn.addEventListener('click', printBarcode);
+        openCompanyPicker.addEventListener('click', () => toggleCompanyPicker(true));
+        openProductPicker.addEventListener('click', async () => {
+            try {
+                const loaded = await loadProductsForCompany();
+                if (loaded) {
+                    toggleProductPicker(true);
+                }
+            } catch (error) {
+                window.alert(error.message);
+            }
+        });
+        closeCompanyPicker.addEventListener('click', () => toggleCompanyPicker(false));
+        closeProductPicker.addEventListener('click', () => toggleProductPicker(false));
+        companySearchInput.addEventListener('input', filterCompanies);
+        productSearchInput.addEventListener('input', filterProducts);
+        companyPickerTableBody.addEventListener('click', (event) => {
+            const target = event.target.closest('.company-select-btn');
+            if (!target) {
+                return;
+            }
+            selectCompany(target.dataset.code, target.dataset.name);
+        });
+        productPickerTableBody.addEventListener('click', (event) => {
+            const target = event.target.closest('.product-select-btn');
+            if (!target) {
+                return;
+            }
+            selectProduct(target.dataset.code, target.dataset.name);
+        });
+        loadInboundDataBtn.addEventListener('click', () => {
+            window.alert('입고 데이터 불러오기 기능은 다음 단계에서 연결할 수 있습니다.');
+        });
+        inspectionModal.addEventListener('click', (event) => {
+            if (event.target === inspectionModal) {
+                toggleInspectionModal(false);
+            }
+        });
+        companyPickerModal.addEventListener('click', (event) => {
+            if (event.target === companyPickerModal) {
+                toggleCompanyPicker(false);
+            }
+        });
+        productPickerModal.addEventListener('click', (event) => {
+            if (event.target === productPickerModal) {
+                toggleProductPicker(false);
+            }
+        });
+        barcodeModal.addEventListener('click', (event) => {
+            if (event.target === barcodeModal) {
+                toggleBarcodeModal(false);
+            }
+        });
+        document.querySelectorAll('.lot-barcode-btn').forEach((button) => {
+            button.addEventListener('click', () => openBarcodeModal(button.dataset.lotNo || ''));
+        });
+        document.querySelectorAll('.edit-inspection-btn').forEach((button) => {
+            button.addEventListener('click', () => openEditInspection(button));
+        });
+
+        resetInspectionForm();
+        syncCompanyDisplay();
+        syncProductDisplay();
+    </script>
+</body>
+</html>

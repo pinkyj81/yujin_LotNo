@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>인고트 FIFO</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .fifo-wrap {
+            width: 100%;
+            max-width: none;
+            min-height: calc(100vh - 94px);
+            padding: 0;
+        }
+
+        .fifo-panel {
+            width: 100%;
+            min-height: calc(100vh - 96px);
+            background: #ffffff;
+            border: 1px solid #0f1216;
+            border-radius: 0;
+            overflow: hidden;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .fifo-title {
+            background: linear-gradient(180deg, #239643 0%, #176f31 100%);
+            color: #f0fff3;
+            font-size: 40px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            text-align: center;
+            padding: 12px 14px;
+        }
+
+        .fifo-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .fifo-filter {
+            padding: 10px 12px;
+            background: #f3f8f4;
+            border-bottom: 1px solid #ccd9ce;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr auto auto;
+            grid-template-areas:
+                "writer writer lot lot quick quick"
+                "start start end end submit reset";
+            gap: 16px;
+            align-items: end;
+        }
+
+        .fifo-filter-item.writer {
+            grid-area: writer;
+        }
+
+        .fifo-filter-item.lot {
+            grid-area: lot;
+        }
+
+        .fifo-filter-item.inline-row {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .fifo-filter-item.inline-row label {
+            margin-bottom: 0;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
+
+        .fifo-filter-item.inline-row .form-control {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .fifo-lot-actions {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .fifo-lot-actions .form-control {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .fifo-filter-item.start {
+            grid-area: start;
+        }
+
+        .fifo-filter-item.end {
+            grid-area: end;
+        }
+
+        .fifo-filter-quick {
+            grid-area: quick;
+        }
+
+        .fifo-filter-submit {
+            grid-area: submit;
+        }
+
+        .fifo-filter-reset {
+            grid-area: reset;
+        }
+
+        .fifo-filter label {
+            display: block;
+            font-size: 24px;
+            font-weight: 700;
+            color: #35506d;
+            margin-bottom: 4px;
+        }
+
+        .fifo-filter .form-control {
+            height: 72px;
+            font-size: 24px;
+            padding: 0 16px;
+        }
+
+        .fifo-filter-btn {
+            height: 72px;
+            border: 1px solid #176f31;
+            border-radius: 6px;
+            background: #176f31;
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 800;
+            padding: 0 18px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fifo-filter-btn.quick-input {
+            height: 72px;
+            min-width: 236px;
+            font-size: 24px;
+            font-weight: 800;
+            background: #176f31;
+            border-color: #176f31;
+            flex: 0 0 auto;
+        }
+
+        .fifo-filter-submit,
+        .fifo-filter-reset {
+            min-width: 110px;
+        }
+
+        .fifo-filter-btn.secondary {
+            background: #64748b;
+            border-color: #64748b;
+        }
+
+        .fifo-status-modal {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.12);
+            z-index: 1000;
+        }
+
+        .fifo-status-card {
+            width: 520px;
+            border: 1px solid #b7c4d6;
+            background: #ffffff;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .fifo-status-modal.is-hidden {
+            display: none;
+        }
+
+        .fifo-status-card.available .fifo-status-head {
+            background: #176f31;
+            color: #ffffff;
+        }
+
+        .fifo-status-card.available {
+            width: min(94vw, 1500px);
+            min-height: min(86vh, 900px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .fifo-status-card.available .fifo-status-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 30px 46px;
+        }
+
+        .fifo-status-card.available .fifo-status-head {
+            font-size: clamp(44px, 5vw, 88px);
+            padding: 22px 24px;
+        }
+
+        .fifo-status-card.available .fifo-status-icon {
+            width: clamp(130px, 16vw, 240px);
+            height: clamp(130px, 16vw, 240px);
+            margin-bottom: 26px;
+        }
+
+        .fifo-status-card.available .fifo-status-icon svg {
+            width: clamp(72px, 9vw, 130px);
+            height: clamp(72px, 9vw, 130px);
+        }
+
+        .fifo-status-card.available .fifo-status-lot {
+            font-size: clamp(42px, 5.6vw, 96px);
+        }
+
+        .fifo-status-card.available .fifo-status-bundle {
+            margin-top: 24px;
+            font-size: clamp(36px, 4.6vw, 78px);
+        }
+
+        .fifo-status-card.done .fifo-status-head {
+            background: #64748b;
+            color: #ffffff;
+        }
+
+        .fifo-status-card.blocked .fifo-status-head {
+            background: #b42318;
+            color: #ffffff;
+        }
+
+        .fifo-status-head {
+            font-size: 44px;
+            font-weight: 800;
+            text-align: center;
+            padding: 18px 20px;
+        }
+
+        .fifo-status-body {
+            padding: 30px 24px 36px;
+            text-align: center;
+        }
+
+        .fifo-status-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1f7a35;
+            color: #ffffff;
+            box-shadow: 0 10px 24px rgba(31, 122, 53, 0.28);
+        }
+
+        .fifo-status-card.blocked .fifo-status-icon {
+            background: #b42318;
+            box-shadow: 0 10px 24px rgba(180, 35, 24, 0.28);
+        }
+
+        .fifo-status-icon svg {
+            width: 72px;
+            height: 72px;
+            stroke-width: 3.5;
+        }
+
+        .fifo-status-lot {
+            font-size: 34px;
+            line-height: 1.25;
+            font-weight: 700;
+            color: #1e293b;
+            word-break: break-all;
+        }
+
+        .fifo-status-detail {
+            margin-top: 6px;
+            font-size: 24px;
+            line-height: 1.35;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .fifo-status-extra {
+            margin-top: 8px;
+            font-size: 48px;
+            line-height: 1.35;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .fifo-status-bundle {
+            margin-top: 16px;
+            font-size: 30px;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .fifo-table-wrap {
+            flex: 1;
+            min-height: 0;
+            max-height: none;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .fifo-table thead th {
+            background: #cde5d3;
+            color: #1e293b;
+            font-size: 30px;
+            font-weight: 800;
+            border-bottom: 1px solid #9bbda3;
+            padding: 12px 10px;
+            text-align: center;
+        }
+
+        .fifo-table tbody td {
+            border-bottom: 1px solid #d7dfd9;
+            font-size: 30px;
+            color: #0f172a;
+            padding: 14px 10px;
+            text-align: center;
+            background: #ffffff;
+        }
+
+        .fifo-table tbody td:nth-child(2) {
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .fifo-empty {
+            color: #64748b;
+            text-align: center;
+            padding: 16px 12px;
+            font-size: 13px;
+        }
+
+        .fifo-bottom {
+            background: #f0f5f2;
+            border-top: 1px solid #ccd9ce;
+            padding: 12px;
+        }
+
+        .fifo-confirm-btn {
+            width: 100%;
+            height: 42px;
+            border: 1px solid #2d6bb1;
+            border-radius: 6px;
+            background: linear-gradient(180deg, #2d7fd0 0%, #205d9e 100%);
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .fifo-count {
+            margin: 8px 0 0;
+            color: #64748b;
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .fifo-pagination {
+            margin-top: 10px;
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .fifo-page-link {
+            min-width: 30px;
+            height: 30px;
+            border: 1px solid #b8c7bc;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #1e293b;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 8px;
+        }
+
+        .fifo-page-link.active {
+            background: #176f31;
+            border-color: #176f31;
+            color: #ffffff;
+        }
+
+        @media (max-width: 560px) {
+            .fifo-filter {
+                grid-template-columns: 1fr 1fr;
+                grid-template-areas:
+                    "writer writer"
+                    "lot lot"
+                    "quick quick"
+                    "start end"
+                    "submit reset";
+            }
+        }
+    </style>
+</head>
+<body class="traceability-page">
+    <nav class="navbar">
+        <div class="container nav-inner">
+            <a href="/" class="logo">
+                <img src="{{ url_for('static', filename='images/logo.gif') }}" alt="유진금속공업" class="logo-img">
+                <span class="logo-text">유진금속공업(주)</span>
+            </a>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('ingot_fifo') }}" class="nav-link-fifo">인고트 FIFO</a></li>
+                <li class="dropdown">
+                    <details class="dropdown-details">
+                        <summary class="nav-link dropdown-toggle">Traceability</summary>
+                        <ul class="dropdown-menu">
+                            <li><a href="{{ url_for('index') }}" class="dropdown-item">인고트 입고 목록</a></li>
+                            <li><a href="{{ url_for('ingot_input') }}" class="dropdown-item">인고트 투입</a></li>
+                            <li><a href="{{ url_for('ingot_traceability') }}" class="dropdown-item">추적성 확인</a></li>
+                            <li><a href="{{ url_for('ingot_traceability_subul') }}" class="dropdown-item">매출 내역</a></li>
+                        </ul>
+                    </details>
+                </li>
+                <li><a href="#" class="nav-link">사용자 관리</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="fifo-wrap">
+            <section class="fifo-panel">
+                <h2 class="fifo-title">사용 가능 LOT 현황</h2>
+
+                {% if error %}
+                <div class="error-banner" style="margin: 10px;">{{ error }}</div>
+                {% endif %}
+                {% if recent_status %}
+                <div id="fifo-status-modal" class="fifo-status-modal" aria-live="polite">
+                    <div class="fifo-status-card {{ recent_status.kind }}" id="fifo-status-card" role="dialog" aria-modal="true" aria-label="입력 상태 팝업">
+                        <div class="fifo-status-head">{{ recent_status.label }}</div>
+                        <div class="fifo-status-body">
+                            <div class="fifo-status-icon">
+                                <i data-lucide="{{ 'x' if recent_status.kind == 'blocked' else 'check' }}"></i>
+                            </div>
+                            {% if recent_status.detail_text %}
+                            <div class="fifo-status-detail">{{ recent_status.detail_text }}</div>
+                            {% endif %}
+                            {% if recent_status.extra_text %}
+                            <div class="fifo-status-extra">{{ recent_status.extra_text }}</div>
+                            {% endif %}
+                            <div class="fifo-status-lot">{{ recent_status.lot_no }}</div>
+                            <div class="fifo-status-bundle">{% if recent_status.kind == 'blocked' %}(잔량 : {{ recent_status.bundle_text }}개){% else %}잔량 : {{ recent_status.bundle_text }}개{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+                {% elif notice %}
+                <div class="success-banner" style="margin: 10px; color: #0f5132; background: #d1e7dd; border: 1px solid #badbcc; padding: 8px 10px; border-radius: 6px;">{{ notice }}</div>
+                {% endif %}
+
+                <form class="fifo-filter" action="{{ url_for('ingot_fifo') }}" method="get">
+                    <div class="fifo-filter-item writer inline-row">
+                        <label for="writer_name">담당자</label>
+                        <select id="writer_name" name="writer_name" class="form-control">
+                            <option value="">전체</option>
+                            {% for writer in writer_options %}
+                            <option value="{{ writer }}" {% if filters.writer_name == writer %}selected{% endif %}>{{ writer }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="fifo-filter-item lot inline-row">
+                        <label for="lot_no">Lot No</label>
+                        <div class="fifo-lot-actions">
+                            <input id="lot_no" name="lot_no" type="text" class="form-control" placeholder="바코드를 스캔하세요" value="{{ filters.lot_no }}" autocomplete="off" inputmode="none" readonly>
+                        </div>
+                    </div>
+                    <button type="button" id="scannerCapture" aria-hidden="true" tabindex="0" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;opacity:0;pointer-events:none;">scanner-capture</button>
+                    <button id="quick-input-btn" type="submit" class="fifo-filter-btn quick-input fifo-filter-quick" formaction="{{ url_for('ingot_fifo_quick_input') }}" formmethod="post">입력</button>
+                    <div class="fifo-filter-item start inline-row">
+                        <label for="start_date">시작일</label>
+                        <input id="start_date" name="start_date" type="date" class="form-control" value="{{ filters.start_date }}">
+                    </div>
+                    <div class="fifo-filter-item end inline-row">
+                        <label for="end_date">종료일</label>
+                        <input id="end_date" name="end_date" type="date" class="form-control" value="{{ filters.end_date }}">
+                    </div>
+                    <button type="submit" class="fifo-filter-btn fifo-filter-submit">조회</button>
+                    <a href="{{ url_for('ingot_fifo') }}" class="fifo-filter-btn secondary fifo-filter-reset">초기화</a>
+                </form>
+
+                <div class="fifo-table-wrap">
+                    <table class="fifo-table">
+                        <thead>
+                            <tr>
+                                <th>입고일자</th>
+                                <th>품명</th>
+                                <th>LOT No</th>
+                                <th>사용가능 번들수</th>
+                                <th>사용번들수</th>
+                                <th>입고량(kg)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if fifo_rows %}
+                                {% for row in fifo_rows %}
+                                <tr>
+                                    <td>{{ row.InboundDate }}</td>
+                                    <td>{{ row.ProductName }}</td>
+                                    <td>{{ row.LotNo }}</td>
+                                    <td>{{ row.BundleCountDisplay }}</td>
+                                    <td>{{ row.UsedBundleCountDisplay }}</td>
+                                    <td>{{ row.AvailableQtyDisplay }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="fifo-empty">사용 가능한 LOT가 없습니다.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="fifo-bottom">
+                    <button type="button" class="fifo-confirm-btn" onclick="window.location.href='{{ url_for('ingot_input') }}'">사용 확인</button>
+                    <p class="fifo-count">총 {{ total_count }}건</p>
+                    {% if total_pages > 1 %}
+                    <div class="fifo-pagination">
+                        {% if page > 1 %}
+                        <a class="fifo-page-link" href="{{ url_for('ingot_fifo', writer_name=filters.writer_name, lot_no=filters.lot_no, start_date=filters.start_date, end_date=filters.end_date, page=page-1) }}">이전</a>
+                        {% endif %}
+                        {% for p in range(1, total_pages + 1) %}
+                        <a class="fifo-page-link {% if p == page %}active{% endif %}" href="{{ url_for('ingot_fifo', writer_name=filters.writer_name, lot_no=filters.lot_no, start_date=filters.start_date, end_date=filters.end_date, page=p) }}">{{ p }}</a>
+                        {% endfor %}
+                        {% if page < total_pages %}
+                        <a class="fifo-page-link" href="{{ url_for('ingot_fifo', writer_name=filters.writer_name, lot_no=filters.lot_no, start_date=filters.start_date, end_date=filters.end_date, page=page+1) }}">다음</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        (function () {
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(function () {
+                    // Ignore fullscreen permission/block errors.
+                });
+            }
+
+            const lotInput = document.getElementById("lot_no");
+            const quickInputButton = document.getElementById("quick-input-btn");
+            const scannerCapture = document.getElementById("scannerCapture");
+            const statusModal = document.getElementById("fifo-status-modal");
+            const statusCard = document.getElementById("fifo-status-card");
+            let scanBuffer = "";
+            let scanResetTimer = null;
+
+            function focusScannerCapture() {
+                if (scannerCapture) {
+                    scannerCapture.focus();
+                }
+            }
+
+            function closeStatusModal() {
+                if (statusModal) {
+                    statusModal.classList.add("is-hidden");
+                }
+                window.setTimeout(focusScannerCapture, 0);
+            }
+
+            if (!lotInput || !quickInputButton) {
+                if (statusModal && statusCard) {
+                    statusModal.addEventListener("click", closeStatusModal);
+                    statusCard.addEventListener("click", closeStatusModal);
+                    document.addEventListener("keydown", function (event) {
+                        if (event.key === "Escape") {
+                            closeStatusModal();
+                        }
+                    });
+                }
+                return;
+            }
+
+            lotInput.addEventListener("pointerdown", function (event) {
+                event.preventDefault();
+                focusScannerCapture();
+            });
+
+            lotInput.addEventListener("focus", function () {
+                lotInput.blur();
+                focusScannerCapture();
+            });
+
+            document.addEventListener("keydown", function (event) {
+                if (event.altKey || event.ctrlKey || event.metaKey) {
+                    return;
+                }
+
+                if (event.key === "Enter") {
+                    if (scanBuffer.trim()) {
+                        event.preventDefault();
+                        lotInput.value = scanBuffer.trim();
+                        scanBuffer = "";
+                        if (scanResetTimer) {
+                            window.clearTimeout(scanResetTimer);
+                            scanResetTimer = null;
+                        }
+                        quickInputButton.click();
+                    }
+                    return;
+                }
+
+                if (event.key === "Backspace") {
+                    event.preventDefault();
+                    scanBuffer = scanBuffer.slice(0, -1);
+                    lotInput.value = scanBuffer;
+                    return;
+                }
+
+                if (event.key.length === 1) {
+                    event.preventDefault();
+                    scanBuffer += event.key;
+                    lotInput.value = scanBuffer;
+                    if (scanResetTimer) {
+                        window.clearTimeout(scanResetTimer);
+                    }
+                    scanResetTimer = window.setTimeout(function () {
+                        scanBuffer = "";
+                        lotInput.value = "";
+                    }, 1200);
+                }
+            });
+
+            window.setTimeout(focusScannerCapture, 0);
+
+            if (statusModal && statusCard) {
+                statusModal.addEventListener("click", closeStatusModal);
+                statusCard.addEventListener("click", closeStatusModal);
+                document.addEventListener("keydown", function (event) {
+                    if (event.key === "Escape") {
+                        closeStatusModal();
+                    }
+                });
+
+                const isBlockedModal = statusCard.classList.contains("blocked");
+                if (!isBlockedModal) {
+                    window.setTimeout(closeStatusModal, 900);
+                }
+            }
+        })();
+    </script>
+</body>
+</html>

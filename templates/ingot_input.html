@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>인고트 투입</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .ingot-input-layout {
+            display: grid;
+            grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .ingot-input-card {
+            background: #f2f4f7;
+            border: 1px solid #e1e5eb;
+            border-radius: 12px;
+            padding: 18px;
+        }
+
+        .ingot-input-note {
+            margin-top: -6px;
+            margin-bottom: 14px;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .ingot-input-form {
+            display: grid;
+            gap: 12px;
+        }
+
+        .ingot-clock-box {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .clock-value {
+            height: 44px;
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+            border: 1px solid #d1d8e0;
+            border-radius: 8px;
+            background: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            color: #183252;
+        }
+
+        .barcode-scan-input {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            ime-mode: disabled;
+        }
+
+        .ingot-helper {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: -6px;
+        }
+
+        .ingot-table-card {
+            background: #ffffff;
+            border: 1px solid #d8e5dc;
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .ingot-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .ingot-toolbar-title {
+            font-size: 16px;
+            font-weight: 800;
+            color: #183252;
+        }
+
+        .ingot-empty-row {
+            text-align: center;
+            color: #667085;
+            padding: 24px 12px;
+        }
+
+        .ingot-toast-backdrop {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.18);
+            z-index: 1400;
+        }
+
+        .ingot-toast-panel {
+            width: min(360px, calc(100vw - 32px));
+            background: #ffffff;
+            border: 1px solid #d8e5dc;
+            border-radius: 14px;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+            padding: 22px 20px;
+            text-align: center;
+        }
+
+        .ingot-toast-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #183252;
+            margin-bottom: 8px;
+        }
+
+        .ingot-toast-message {
+            font-size: 14px;
+            color: #475569;
+        }
+
+        @media (max-width: 1200px) {
+            .ingot-input-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container nav-inner">
+            <a href="/" class="logo">
+                <img src="{{ url_for('static', filename='images/logo.gif') }}" alt="유진금속공업" class="logo-img">
+                <span class="logo-text">유진금속공업(주)</span>
+            </a>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('ingot_fifo') }}" class="nav-link-fifo">인고트 FIFO</a></li>
+                <li class="dropdown">
+                    <details class="dropdown-details">
+                        <summary class="nav-link dropdown-toggle">Traceability</summary>
+                        <ul class="dropdown-menu">
+                            <li><a href="{{ url_for('index') }}" class="dropdown-item">인고트 입고 목록</a></li>
+                            <li><a href="{{ url_for('ingot_input') }}" class="dropdown-item">인고트 투입</a></li>
+                            <li><a href="{{ url_for('ingot_traceability') }}" class="dropdown-item">추적성 확인</a></li>
+                            <li><a href="{{ url_for('ingot_traceability_subul') }}" class="dropdown-item">매출 내역</a></li>
+                        </ul>
+                    </details>
+                </li>
+                <li><a href="#" class="nav-link">사용자 관리</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <section class="list-container">
+                <div class="section-header">
+                    <h2><i data-lucide="scan-barcode" class="title-icon"></i> 인고트 투입</h2>
+                </div>
+
+                <p class="ingot-input-note">바코드를 스캔하면 현재 날짜와 시간, 작성자를 함께 기록합니다.</p>
+
+                <div class="ingot-input-layout">
+                    <div class="ingot-input-card">
+                        <form id="ingotInputForm" class="ingot-input-form">
+                            <input id="editingEntryId" type="hidden">
+                            <div class="filter-group">
+                                <label for="writerName">작성자</label>
+                                <input id="writerName" type="text" class="form-control" placeholder="작성자 이름 입력" required>
+                            </div>
+
+                            <div class="ingot-clock-box">
+                                <div class="filter-group">
+                                    <label>현재 날짜</label>
+                                    <div class="clock-value" id="currentDate">-</div>
+                                </div>
+                                <div class="filter-group">
+                                    <label>현재 시간</label>
+                                    <div class="clock-value" id="currentTime">-</div>
+                                </div>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="barcodeValue">바코드</label>
+                                <input id="barcodeValue" type="text" class="form-control barcode-scan-input" placeholder="바코드를 스캔하세요" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" lang="en" required>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="bundleCountInput">번들수</label>
+                                <input id="bundleCountInput" type="number" class="form-control" min="0" step="1" placeholder="번들수 입력">
+                            </div>
+
+                            <p class="ingot-helper">스캐너 입력 후 Enter를 누르면 목록에 추가됩니다.</p>
+
+                            <div class="action-buttons" style="margin-top: 4px;">
+                                <button type="submit" class="btn btn-primary" id="saveEntryBtn"><i data-lucide="plus" class="btn-icon"></i> 추가</button>
+                                <button type="button" class="btn btn-secondary" id="cancelEditBtn" hidden>수정 취소</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="ingot-table-card">
+                        <div class="ingot-toolbar">
+                            <div class="ingot-toolbar-title">투입 기록</div>
+                            <button type="button" class="btn btn-secondary" id="clearIngotEntriesBtn">전체 삭제</button>
+                        </div>
+
+                        <div class="table-responsive" style="margin-top: 0;">
+                            <table class="data-table" style="min-width: 1320px;">
+                                <thead>
+                                    <tr>
+                                        <th>No</th>
+                                        <th>기록일자</th>
+                                        <th>기록시간</th>
+                                        <th>작성자</th>
+                                        <th>업체코드</th>
+                                        <th>업체명</th>
+                                        <th>품번</th>
+                                        <th>품명</th>
+                                        <th>수량</th>
+                                        <th>번들수</th>
+                                        <th>바코드</th>
+                                        <th>작업</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ingotInputTbody">
+                                    <tr>
+                                        <td colspan="12" class="ingot-empty-row">아직 기록된 바코드가 없습니다.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div class="ingot-toast-backdrop" id="ingotSuccessToast" hidden>
+        <div class="ingot-toast-panel">
+            <div class="ingot-toast-title">등록되었습니다.</div>
+            <div class="ingot-toast-message">바코드 정보가 저장되었습니다.</div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const writerNameInput = document.getElementById('writerName');
+        const barcodeValueInput = document.getElementById('barcodeValue');
+        const bundleCountInput = document.getElementById('bundleCountInput');
+        const ingotInputForm = document.getElementById('ingotInputForm');
+        const ingotInputTbody = document.getElementById('ingotInputTbody');
+        const clearIngotEntriesBtn = document.getElementById('clearIngotEntriesBtn');
+        const currentDateEl = document.getElementById('currentDate');
+        const currentTimeEl = document.getElementById('currentTime');
+        const editingEntryIdInput = document.getElementById('editingEntryId');
+        const saveEntryBtn = document.getElementById('saveEntryBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const ingotSuccessToast = document.getElementById('ingotSuccessToast');
+        let ingotToastTimer = null;
+        let currentEntries = [];
+
+        function getNowParts() {
+            const now = new Date();
+            const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+            return { date, time };
+        }
+
+        function syncClock() {
+            const now = getNowParts();
+            currentDateEl.textContent = now.date;
+            currentTimeEl.textContent = now.time;
+        }
+
+        function hideSuccessToast() {
+            ingotSuccessToast.hidden = true;
+            if (ingotToastTimer) {
+                window.clearTimeout(ingotToastTimer);
+                ingotToastTimer = null;
+            }
+        }
+
+        function showSuccessToast() {
+            ingotSuccessToast.hidden = false;
+            if (ingotToastTimer) {
+                window.clearTimeout(ingotToastTimer);
+            }
+            ingotToastTimer = window.setTimeout(() => {
+                hideSuccessToast();
+            }, 1600);
+        }
+
+        function resetFormMode() {
+            editingEntryIdInput.value = '';
+            saveEntryBtn.innerHTML = '<i data-lucide="plus" class="btn-icon"></i> 추가';
+            cancelEditBtn.hidden = true;
+            barcodeValueInput.value = '';
+            bundleCountInput.value = '';
+            lucide.createIcons();
+        }
+
+        function setEditMode(entry) {
+            editingEntryIdInput.value = String(entry.InputID);
+            writerNameInput.value = entry.WriterName === '-' ? '' : entry.WriterName;
+            barcodeValueInput.value = entry.BarcodeValue === '-' ? '' : entry.BarcodeValue;
+            bundleCountInput.value = entry.BundleCount || 0;
+            saveEntryBtn.innerHTML = '<i data-lucide="square-pen" class="btn-icon"></i> 수정 저장';
+            cancelEditBtn.hidden = false;
+            lucide.createIcons();
+            barcodeValueInput.focus();
+            barcodeValueInput.select();
+        }
+
+        function renderEntries(entries) {
+            currentEntries = entries;
+            if (!entries.length) {
+                ingotInputTbody.innerHTML = '<tr><td colspan="12" class="ingot-empty-row">아직 기록된 바코드가 없습니다.</td></tr>';
+                return;
+            }
+
+            ingotInputTbody.innerHTML = entries.map((entry, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${entry.InputDate}</td>
+                    <td>${entry.InputTime}</td>
+                    <td>${entry.WriterName}</td>
+                    <td>${entry.CompanyCode}</td>
+                    <td>${entry.CompanyName}</td>
+                    <td>${entry.PartNumber}</td>
+                    <td>${entry.ProductName}</td>
+                    <td style="text-align: right;">${entry.QuantityDisplay}</td>
+                    <td style="text-align: right;">${entry.BundleCountDisplay}</td>
+                    <td><strong>${entry.BarcodeValue}</strong></td>
+                    <td>
+                        <button type="button" class="btn-small btn-secondary ingot-edit-btn" data-entry-id="${entry.InputID}">수정</button>
+                        <button type="button" class="btn-small btn-delete" data-entry-id="${entry.InputID}">삭제</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadEntries() {
+            const response = await fetch('/api/ingot-input/entries');
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || '투입 기록을 불러오지 못했습니다.');
+            }
+            renderEntries(payload.rows || []);
+        }
+
+        async function addEntry() {
+            const writer = writerNameInput.value.trim();
+            const barcode = barcodeValueInput.value.trim();
+            const bundleCount = bundleCountInput.value.trim();
+
+            if (!writer) {
+                window.alert('작성자를 입력해주세요.');
+                writerNameInput.focus();
+                return;
+            }
+
+            if (!barcode) {
+                window.alert('바코드를 스캔하거나 입력해주세요.');
+                barcodeValueInput.focus();
+                return;
+            }
+
+            const response = await fetch('/api/ingot-input/entries', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ writer_name: writer, barcode_value: barcode, bundle_count: bundleCount }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || '투입 기록 저장에 실패했습니다.');
+            }
+
+            renderEntries(payload.rows || []);
+            showSuccessToast();
+            resetFormMode();
+            barcodeValueInput.focus();
+        }
+
+        async function updateEntry(entryId) {
+            const writer = writerNameInput.value.trim();
+            const barcode = barcodeValueInput.value.trim();
+            const bundleCount = bundleCountInput.value.trim();
+
+            if (!writer) {
+                window.alert('작성자를 입력해주세요.');
+                writerNameInput.focus();
+                return;
+            }
+
+            if (!barcode) {
+                window.alert('바코드를 스캔하거나 입력해주세요.');
+                barcodeValueInput.focus();
+                return;
+            }
+
+            const response = await fetch(`/api/ingot-input/entries/${entryId}/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ writer_name: writer, barcode_value: barcode, bundle_count: bundleCount }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || '투입 기록 수정에 실패했습니다.');
+            }
+
+            renderEntries(payload.rows || []);
+            showSuccessToast();
+            resetFormMode();
+            barcodeValueInput.focus();
+        }
+
+        ingotInputForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            try {
+                if (editingEntryIdInput.value) {
+                    await updateEntry(Number(editingEntryIdInput.value));
+                } else {
+                    await addEntry();
+                }
+            } catch (error) {
+                window.alert(error.message);
+            }
+        });
+
+        ingotInputTbody.addEventListener('click', async (event) => {
+            const editTarget = event.target.closest('.ingot-edit-btn');
+            if (editTarget) {
+                const entryId = Number(editTarget.dataset.entryId);
+                const entry = currentEntries.find((item) => Number(item.InputID) === entryId);
+                if (entry) {
+                    setEditMode(entry);
+                }
+                return;
+            }
+
+            const target = event.target.closest('.btn-delete[data-entry-id]');
+            if (!target) {
+                return;
+            }
+
+            try {
+                const entryId = Number(target.dataset.entryId);
+                const response = await fetch(`/api/ingot-input/entries/${entryId}/delete`, { method: 'POST' });
+                const payload = await response.json();
+                if (!response.ok || !payload.success) {
+                    throw new Error(payload.error || '기록 삭제에 실패했습니다.');
+                }
+                renderEntries(payload.rows || []);
+            } catch (error) {
+                window.alert(error.message);
+            }
+        });
+
+        cancelEditBtn.addEventListener('click', () => {
+            resetFormMode();
+            barcodeValueInput.focus();
+        });
+
+        clearIngotEntriesBtn.addEventListener('click', async () => {
+            if (!window.confirm('투입 기록을 모두 삭제하시겠습니까?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/ingot-input/entries/clear', { method: 'POST' });
+                const payload = await response.json();
+                if (!response.ok || !payload.success) {
+                    throw new Error(payload.error || '전체 삭제에 실패했습니다.');
+                }
+                renderEntries(payload.rows || []);
+                barcodeValueInput.focus();
+            } catch (error) {
+                window.alert(error.message);
+            }
+        });
+
+        syncClock();
+        loadEntries().catch((error) => {
+            ingotInputTbody.innerHTML = `<tr><td colspan="12" class="ingot-empty-row">${error.message}</td></tr>`;
+        });
+        resetFormMode();
+        barcodeValueInput.focus();
+        window.setInterval(syncClock, 1000);
+
+        ingotSuccessToast.addEventListener('click', (event) => {
+            if (event.target === ingotSuccessToast) {
+                hideSuccessToast();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !ingotSuccessToast.hidden) {
+                hideSuccessToast();
+            }
+        });
+    </script>
+</body>
+</html>
