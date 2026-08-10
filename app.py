@@ -91,6 +91,14 @@ def build_yujincast_reference_connection_string() -> str:
     )
 
 
+def _replace_odbc_driver(conn_str: str, driver_name: str) -> str:
+    updated = conn_str
+    for known_driver in ("ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server"):
+        if known_driver in updated:
+            updated = updated.replace(known_driver, driver_name)
+    return updated
+
+
 def get_db_connection(prefix: str = "DB"):
     if prefix == "YUJIN_DB":
         last_error = None
@@ -105,10 +113,12 @@ def get_db_connection(prefix: str = "DB"):
             except Exception as fallback_exc:
                 last_error = fallback_exc
 
-                # ODBC 18이 실패하면 구형 서버 호환을 위해 Driver 17도 시도.
-                alt_conn_str = conn_str.replace("ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server")
-                if alt_conn_str != conn_str:
-                    return pyodbc.connect(alt_conn_str, timeout=5)
+                for driver_name in ("ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server"):
+                    alt_conn_str = _replace_odbc_driver(conn_str, driver_name)
+                    try:
+                        return pyodbc.connect(alt_conn_str, timeout=5)
+                    except Exception as alt_exc:
+                        last_error = alt_exc
 
         if last_error:
             raise last_error
@@ -124,7 +134,7 @@ def get_db_connection(prefix: str = "DB"):
 
 
 def get_reference_db_prefixes() -> list[str]:
-    return ["YUJIN_DB", "YUJINCAST_DB"]
+    return ["YUJIN_DB"]
 
 
 def fetch_dict_rows(cursor, query: str, params=None):
@@ -194,6 +204,16 @@ def load_form_options():
                     ORDER BY CustName
                     """,
                 )
+                if not companies:
+                    companies = fetch_dict_rows(
+                        cursor,
+                        """
+                        SELECT CustCode, CustName
+                        FROM dbo.Custinfo
+                        WHERE LTRIM(RTRIM(ISNULL(CustCode, ''))) <> ''
+                        ORDER BY CustName
+                        """,
+                    )
         return companies
     except Exception as exc:
         logger.warning("company options load failed (YUJIN_DB): %s", exc)
