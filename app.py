@@ -55,7 +55,7 @@ def build_yujin_reference_connection_string() -> str:
     database = get_env_value("YUJIN_DB_NAME", "YUJIN_DB_DATABASE", "DB_0501_NAME", "DB_0501_DATABASE", default="yujin")
     username = get_env_value("YUJIN_DB_USER", "YUJIN_DB_USERNAME", "DB_0501_USER", "DB_0501_USERNAME", default="yujin")
     password = get_env_value("YUJIN_DB_PASSWORD", "DB_0501_PASSWORD", default="yj8630")
-    driver = get_env_value("YUJIN_DB_DRIVER", "DB_0501_DRIVER", "DB_DRIVER", default="ODBC Driver 18 for SQL Server")
+    driver = get_env_value("DB_0501_DRIVER", "DB_DRIVER", default="ODBC Driver 18 for SQL Server")
     encrypt = get_env_value("YUJIN_DB_ENCRYPT", default="no")
     trust_server_cert = get_env_value("YUJIN_DB_TRUST_SERVER_CERTIFICATE", default="yes")
 
@@ -101,24 +101,15 @@ def _replace_odbc_driver(conn_str: str, driver_name: str) -> str:
 
 def get_db_connection(prefix: str = "DB"):
     if prefix == "YUJIN_DB":
+        conn_str = build_yujin_reference_connection_string()
         last_error = None
-        try:
-            conn_str = build_connection_string(prefix)
-            return pyodbc.connect(conn_str, timeout=5)
-        except Exception as exc:
-            last_error = exc
-            conn_str = build_yujin_reference_connection_string()
-            try:
-                return pyodbc.connect(conn_str, timeout=5)
-            except Exception as fallback_exc:
-                last_error = fallback_exc
 
-                for driver_name in ("ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server"):
-                    alt_conn_str = _replace_odbc_driver(conn_str, driver_name)
-                    try:
-                        return pyodbc.connect(alt_conn_str, timeout=5)
-                    except Exception as alt_exc:
-                        last_error = alt_exc
+        for driver_name in ("ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server"):
+            alt_conn_str = _replace_odbc_driver(conn_str, driver_name)
+            try:
+                return pyodbc.connect(alt_conn_str, timeout=5)
+            except Exception as exc:
+                last_error = exc
 
         if last_error:
             raise last_error
