@@ -204,69 +204,45 @@
             color: #ffffff;
         }
 
-        .fifo-status-card.available,
-        .fifo-status-card.done,
-        .fifo-status-card.blocked {
-            width: min(96vw, 1040px);
+        .fifo-status-card.available {
+            width: min(94vw, 1500px);
+            min-height: min(86vh, 900px);
             display: flex;
             flex-direction: column;
         }
 
-        .fifo-status-card.available .fifo-status-head,
-        .fifo-status-card.done .fifo-status-head,
-        .fifo-status-card.blocked .fifo-status-head {
-            font-size: 88px;
-            padding: 30px 24px;
-        }
-
-        .fifo-status-card.available .fifo-status-body,
-        .fifo-status-card.done .fifo-status-body,
-        .fifo-status-card.blocked .fifo-status-body {
+        .fifo-status-card.available .fifo-status-body {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 48px 28px 56px;
+            padding: 40px 30px 46px;
         }
 
-        .fifo-status-card.available .fifo-status-icon,
-        .fifo-status-card.done .fifo-status-icon,
-        .fifo-status-card.blocked .fifo-status-icon {
-            width: 240px;
-            height: 240px;
-            margin-bottom: 34px;
+        .fifo-status-card.available .fifo-status-head {
+            font-size: clamp(44px, 5vw, 88px);
+            padding: 22px 24px;
         }
 
-        .fifo-status-card.available .fifo-status-icon svg,
-        .fifo-status-card.done .fifo-status-icon svg,
-        .fifo-status-card.blocked .fifo-status-icon svg {
-            width: 144px;
-            height: 144px;
+        .fifo-status-card.available .fifo-status-icon {
+            width: clamp(130px, 16vw, 240px);
+            height: clamp(130px, 16vw, 240px);
+            margin-bottom: 26px;
         }
 
-        .fifo-status-card.available .fifo-status-lot,
-        .fifo-status-card.done .fifo-status-lot,
-        .fifo-status-card.blocked .fifo-status-lot {
-            font-size: 68px;
+        .fifo-status-card.available .fifo-status-icon svg {
+            width: clamp(72px, 9vw, 130px);
+            height: clamp(72px, 9vw, 130px);
         }
 
-        .fifo-status-card.available .fifo-status-detail,
-        .fifo-status-card.done .fifo-status-detail,
-        .fifo-status-card.blocked .fifo-status-detail {
-            font-size: 48px;
+        .fifo-status-card.available .fifo-status-lot {
+            font-size: clamp(42px, 5.6vw, 96px);
         }
 
-        .fifo-status-card.available .fifo-status-extra,
-        .fifo-status-card.done .fifo-status-extra,
-        .fifo-status-card.blocked .fifo-status-extra {
-            font-size: 96px;
-        }
-
-        .fifo-status-card.available .fifo-status-bundle,
-        .fifo-status-card.done .fifo-status-bundle,
-        .fifo-status-card.blocked .fifo-status-bundle {
-            font-size: 60px;
+        .fifo-status-card.available .fifo-status-bundle {
+            margin-top: 24px;
+            font-size: clamp(36px, 4.6vw, 78px);
         }
 
         .fifo-status-card.done .fifo-status-head {
@@ -277,6 +253,46 @@
         .fifo-status-card.blocked .fifo-status-head {
             background: #b42318;
             color: #ffffff;
+        }
+
+        .fifo-status-card.blocked {
+            width: min(96vw, 1040px);
+        }
+
+        .fifo-status-card.blocked .fifo-status-head {
+            font-size: 88px;
+            padding: 30px 24px;
+        }
+
+        .fifo-status-card.blocked .fifo-status-body {
+            padding: 48px 28px 56px;
+        }
+
+        .fifo-status-card.blocked .fifo-status-icon {
+            width: 240px;
+            height: 240px;
+            margin-bottom: 34px;
+        }
+
+        .fifo-status-card.blocked .fifo-status-icon svg {
+            width: 144px;
+            height: 144px;
+        }
+
+        .fifo-status-card.blocked .fifo-status-lot {
+            font-size: 68px;
+        }
+
+        .fifo-status-card.blocked .fifo-status-detail {
+            font-size: 48px;
+        }
+
+        .fifo-status-card.blocked .fifo-status-extra {
+            font-size: 96px;
+        }
+
+        .fifo-status-card.blocked .fifo-status-bundle {
+            font-size: 60px;
         }
 
         .fifo-status-head {
@@ -620,29 +636,7 @@
                 }
             }
 
-            function armFullscreenRetryOnGesture() {
-                document.addEventListener("pointerdown", requestPageFullscreen, { once: true });
-                document.addEventListener("keydown", requestPageFullscreen, { once: true });
-            }
-
-            function keepFullscreenMode() {
-                document.addEventListener("fullscreenchange", function () {
-                    if (!document.fullscreenElement) {
-                        // Esc 등으로 전체화면이 해제되면 즉시 재요청하고, 막히면 다음 사용자 입력에서 재시도.
-                        window.setTimeout(requestPageFullscreen, 0);
-                        armFullscreenRetryOnGesture();
-                    }
-                });
-
-                document.addEventListener("visibilitychange", function () {
-                    if (!document.hidden) {
-                        window.setTimeout(requestPageFullscreen, 0);
-                    }
-                });
-            }
-
             requestPageFullscreen();
-            keepFullscreenMode();
 
             const lotInput = document.getElementById("lot_no");
             const quickInputButton = document.getElementById("quick-input-btn");
@@ -662,12 +656,12 @@
                 if (statusModal) {
                     statusModal.classList.add("is-hidden");
                 }
-                requestPageFullscreen();
                 window.setTimeout(focusScannerCapture, 0);
             }
 
             if (!lotInput || !quickInputButton) {
-                armFullscreenRetryOnGesture();
+                document.addEventListener("pointerdown", requestPageFullscreen, { once: true });
+                document.addEventListener("keydown", requestPageFullscreen, { once: true });
 
                 if (statusModal && statusCard) {
                     statusModal.addEventListener("click", closeStatusModal);
@@ -681,7 +675,8 @@
                 return;
             }
 
-            armFullscreenRetryOnGesture();
+            document.addEventListener("pointerdown", requestPageFullscreen, { once: true });
+            document.addEventListener("keydown", requestPageFullscreen, { once: true });
 
             lotInput.addEventListener("keydown", function (event) {
                 if (event.key === "Enter") {

@@ -181,23 +181,22 @@ def try_load_reference_data():
 def load_form_options():
     companies = []
 
-    for prefix in get_reference_db_prefixes():
-        try:
-            with get_db_connection(prefix) as conn:
-                with conn.cursor() as cursor:
-                    companies = fetch_dict_rows(
-                        cursor,
-                        """
-                        SELECT CustCode, CustName
-                        FROM dbo.Custinfo
-                        WHERE LTRIM(RTRIM(ISNULL(CustCode, ''))) <> ''
-                          AND LTRIM(RTRIM(ISNULL(mgubun1, ''))) = '001'
-                        ORDER BY CustName
-                        """,
-                    )
-            return companies
-        except Exception as exc:
-            logger.warning("company options load failed (%s): %s", prefix, exc)
+    try:
+        with get_db_connection("YUJIN_DB") as conn:
+            with conn.cursor() as cursor:
+                companies = fetch_dict_rows(
+                    cursor,
+                    """
+                    SELECT CustCode, CustName
+                    FROM dbo.Custinfo
+                    WHERE LTRIM(RTRIM(ISNULL(CustCode, ''))) <> ''
+                      AND LTRIM(RTRIM(ISNULL(mgubun1, ''))) = '001'
+                    ORDER BY CustName
+                    """,
+                )
+        return companies
+    except Exception as exc:
+        logger.warning("company options load failed (YUJIN_DB): %s", exc)
 
     return companies
 
@@ -217,13 +216,12 @@ def load_products_by_company(company_code: str):
         ORDER BY LTRIM(RTRIM(md.CodeNo))
     """
 
-    for prefix in get_reference_db_prefixes():
-        try:
-            with get_db_connection(prefix) as conn:
-                with conn.cursor() as cursor:
-                    return fetch_dict_rows(cursor, query, [company_code])
-        except Exception as exc:
-            logger.warning("product lookup failed (%s): %s", prefix, exc)
+    try:
+        with get_db_connection("YUJIN_DB") as conn:
+            with conn.cursor() as cursor:
+                return fetch_dict_rows(cursor, query, [company_code])
+    except Exception as exc:
+        logger.warning("product lookup failed (YUJIN_DB): %s", exc)
 
     return []
 
