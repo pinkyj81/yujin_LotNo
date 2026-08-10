@@ -56,8 +56,6 @@ def build_yujin_reference_connection_string() -> str:
     username = get_env_value("YUJIN_DB_USER", "YUJIN_DB_USERNAME", "DB_0501_USER", "DB_0501_USERNAME", default="yujin")
     password = get_env_value("YUJIN_DB_PASSWORD", "DB_0501_PASSWORD", default="yj8630")
     driver = "ODBC Driver 18 for SQL Server"
-    encrypt = get_env_value("YUJIN_DB_ENCRYPT", default="no")
-    trust_server_cert = get_env_value("YUJIN_DB_TRUST_SERVER_CERTIFICATE", default="yes")
 
     return (
         f"DRIVER={{{driver}}};"
@@ -65,8 +63,8 @@ def build_yujin_reference_connection_string() -> str:
         f"DATABASE={database};"
         f"UID={username};"
         f"PWD={password};"
-        f"Encrypt={encrypt};"
-        f"TrustServerCertificate={trust_server_cert};"
+        "Encrypt=no;"
+        "TrustServerCertificate=yes;"
     )
 
 
