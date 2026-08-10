@@ -68,6 +68,12 @@ def build_yujin_reference_connection_string() -> str:
     )
 
 
+def _with_odbc_driver(conn_str: str, driver_name: str) -> str:
+    if "ODBC Driver 18 for SQL Server" in conn_str:
+        return conn_str.replace("ODBC Driver 18 for SQL Server", driver_name)
+    return conn_str.replace("ODBC Driver 17 for SQL Server", driver_name)
+
+
 def build_yujincast_reference_connection_string() -> str:
     server = get_env_value("YUJINCAST_DB_SERVER", default="ms1901.gabiadb.com")
     port = get_env_value("YUJINCAST_DB_PORT", default="1433")
@@ -92,7 +98,16 @@ def build_yujincast_reference_connection_string() -> str:
 def get_db_connection(prefix: str = "DB"):
     if prefix == "YUJIN_DB":
         conn_str = build_yujin_reference_connection_string()
-        return pyodbc.connect(conn_str, timeout=5)
+        last_error = None
+
+        for driver_name in ("ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server"):
+            try:
+                return pyodbc.connect(_with_odbc_driver(conn_str, driver_name), timeout=5)
+            except Exception as exc:
+                last_error = exc
+
+        if last_error:
+            raise last_error
 
     if prefix == "YUJINCAST_DB":
         try:
