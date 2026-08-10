@@ -50,12 +50,12 @@ def build_connection_string(prefix: str = "DB") -> str:
 
 
 def build_yujin_reference_connection_string() -> str:
-    server = get_env_value("YUJIN_DB_SERVER", default="ms0501.gabiadb.com")
-    port = get_env_value("YUJIN_DB_PORT", default="1433")
-    database = get_env_value("YUJIN_DB_NAME", "YUJIN_DB_DATABASE", default="yujin")
-    username = get_env_value("YUJIN_DB_USER", "YUJIN_DB_USERNAME", default="yujin")
-    password = get_env_value("YUJIN_DB_PASSWORD", default="yj8630")
-    driver = get_env_value("YUJIN_DB_DRIVER", default="ODBC Driver 18 for SQL Server")
+    server = get_env_value("YUJIN_DB_SERVER", "DB_0501_SERVER", default="ms0501.gabiadb.com")
+    port = get_env_value("YUJIN_DB_PORT", "DB_0501_PORT", default="1433")
+    database = get_env_value("YUJIN_DB_NAME", "YUJIN_DB_DATABASE", "DB_0501_NAME", "DB_0501_DATABASE", default="yujin")
+    username = get_env_value("YUJIN_DB_USER", "YUJIN_DB_USERNAME", "DB_0501_USER", "DB_0501_USERNAME", default="yujin")
+    password = get_env_value("YUJIN_DB_PASSWORD", "DB_0501_PASSWORD", default="yj8630")
+    driver = get_env_value("YUJIN_DB_DRIVER", "DB_0501_DRIVER", "DB_DRIVER", default="ODBC Driver 18 for SQL Server")
     encrypt = get_env_value("YUJIN_DB_ENCRYPT", default="no")
     trust_server_cert = get_env_value("YUJIN_DB_TRUST_SERVER_CERTIFICATE", default="yes")
 
